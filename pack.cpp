@@ -222,6 +222,12 @@ unsigned int pack(unsigned char *buf, const char *format, ...)
 
         for(; *format != '\0'; format++) {
                 switch(*format) {
+                case 'B': // treat as unsigned char
+                        size += PACK_B_SIZE;
+                        C = (unsigned char)va_arg(ap, int); // promoted
+                        *buf++ = C;
+                        break;
+                
                 case 'c': // 8-bit
                         size += PACK_C_SIZE;
                         c = (signed char)va_arg(ap, int); // promoted
@@ -340,6 +346,8 @@ unsigned int pack(unsigned char *buf, const char *format, ...)
 int unpack(unsigned char *buf, const char *format, ...)
 {
         va_list ap;
+        
+        bool *B;
 
         signed char *c;              // 8-bit
         unsigned char *C;
@@ -367,45 +375,51 @@ int unpack(unsigned char *buf, const char *format, ...)
 
         for(; *format != '\0'; format++) {
                 switch(*format) {
+                case 'B': //treat as unsigned char
+                        size += PACK_B_SIZE;
+                        B = va_arg(ap, bool*);
+                        *B = *buf++;
+                        break;
+                
                 case 'c': // 8-bit
-                        size += 1;
+                        size += PACK_C_SIZE;
                         c = va_arg(ap, signed char*);
                         if (*buf <= 0x7f) { *c = *buf++;} // re-sign
                         else { *c = -1 - (unsigned char)(0xffu - *buf); }
                         break;
 
                 case 'C': // 8-bit unsigned
-                        size += 1;
+                        size += PACK_C_SIZE;
                         C = va_arg(ap, unsigned char*);
                         *C = *buf++;
                         break;
 
                 case 'h': // 16-bit
-                        size += 2;
+                        size += PACK_H_SIZE;
                         h = va_arg(ap, short int*);
                         *h = unpacki16(buf);
-                        buf += 2;
+                        buf += PACK_H_SIZE;
                         break;
 
                 case 'H': // 16-bit unsigned
-                        size += 2;
+                        size += PACK_H_SIZE;
                         H = va_arg(ap, unsigned short int*);
                         *H = unpacku16(buf);
-                        buf += 2;
+                        buf += PACK_H_SIZE;
                         break;
 
                 case 'l': // 32-bit
-                        size += 4;
+                        size += PACK_L_SIZE;
                         l = va_arg(ap, long int*);
                         *l = unpacki32(buf);
-                        buf += 4;
+                        buf += PACK_L_SIZE;
                         break;
 
                 case 'L': // 32-bit unsigned
-                        size += 4;
+                        size += PACK_L_SIZE;
                         L = va_arg(ap, unsigned long int*);
                         *L = unpacku32(buf);
-                        buf += 4;
+                        buf += PACK_L_SIZE;
                         break;
 
                 case 'q': // 64-bit

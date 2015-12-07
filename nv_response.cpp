@@ -1,3 +1,4 @@
+
 #include "nv_response.h"
 
 namespace networking {
@@ -90,7 +91,7 @@ CommandBatchResponse* CommandBatchResponse::readFromSocket(boost::asio::ip::tcp:
     
     boost::shared_ptr<commands::results::Batch> commandResultBatch(new commands::results::Batch(initiatingCommandBatch));
     unsigned char* ptr = dataVch.data();
-    commandResultBatch->consumeDataFromBuf(&ptr);
+    commandResultBatch->consumeFromBuf(&ptr);
     
     CommandBatchResponse* cbr = new CommandBatchResponse(commandResultBatch, completion);
     

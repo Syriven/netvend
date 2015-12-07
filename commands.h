@@ -5,7 +5,8 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/lexical_cast.hpp>
 #include <string>
-#include <stdexcept>
+#include <iostream>
+//#include <stdexcept>
 
 #include "common_constants.h"
 #include "pack.h"
@@ -60,43 +61,43 @@ namespace results {
 
     class Result {
         unsigned char error_;
-        unsigned int cost_;
+        unsigned long cost_;
     public:
-        Result(unsigned char error, unsigned int cost);
+        Result(unsigned char error, unsigned long cost);
         virtual void writeToVch(std::vector<unsigned char>* vch);
         static Result* consumeFromBuf(unsigned char **ptrPtr, unsigned char commandType);
-        unsigned int cost();
+        unsigned long cost();
         bool error();
     };
     
     class Batch {
         commands::Batch* initiatingCommandBatch_;
         std::vector<boost::shared_ptr<Result> > results_;
-        unsigned int cost_;
+        unsigned long cost_;
     public:
         Batch(commands::Batch* initiatingCommandBatch);
         void addResult(boost::shared_ptr<Result> result);
         void writeToVch(std::vector<unsigned char>* vch);
-        void consumeDataFromBuf(unsigned char **ptrPtr);
+        void consumeFromBuf(unsigned char **ptrPtr);
         std::vector<boost::shared_ptr<Result> >* results();
-        unsigned int cost();
+        unsigned long cost();
     };
 
     class CreatePocket : public Result {
         unsigned long pocketID_;
     public:
-        CreatePocket(int cost, unsigned long pocketID);
+        CreatePocket(unsigned long cost, unsigned long pocketID);
         void writeToVch(std::vector<unsigned char>* vch);
-        static results::CreatePocket* consumeFromBuf(int cost, unsigned char **ptrPtr);
+        static results::CreatePocket* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
         unsigned long pocketID();
     };
     
     class RequestPocketDepositAddress : public Result {
         std::string depositAddress_;
     public:
-        RequestPocketDepositAddress(int cost, std::string depositAddress);
+        RequestPocketDepositAddress(unsigned long cost, std::string depositAddress);
         void writeToVch(std::vector<unsigned char>* vch);
-        static results::RequestPocketDepositAddress* consumeFromBuf(int cost, unsigned char **ptrPtr);
+        static results::RequestPocketDepositAddress* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
         std::string depositAddress();
     };
 
@@ -104,32 +105,39 @@ namespace results {
 
 namespace errors {
     
-//     class Error : public results::Result {
-//         bool fatalToBatch_;
-//     public:
-//         Error(unsigned char error, unsigned int cost, bool fatalToBatch);
-//         void writeToVch(std::vector<unsigned char>* vch);
-//         static Error* consumeFromBuf(unsigned char error, unsigned int cost, unsigned char **ptrPtr);
-//         bool fatalToBatch();
-//     };
-//     
-//     class IvalidTarget : public Error {
-//         std::string target_;
-//     public:
-//         InvalidTarget(std::string target);
-//         void writeToVch(std::vector<unsigned char>* vch);
-//         static InvalidTarget* consumeFromBuf(int cost, unsigned char **ptrPtr);
-//         std::string target();
-//     };
-//     
-//     class TargetNotOwned : public Error {
-//         std::string target_;
-//     public:
-//         TargetNotOwned(std::string target);
-//         void writeToVch(std::vector<unsigned char>* vch);
-//         static TargetNotOwned* consumeFromBuf(int cost, unsigned char **ptrPtr);
-//         std::string target();
-//     };
+    const unsigned char ERRORTYPECHAR_NONE = 0;
+    const unsigned char ERRORTYPECHAR_INVALID_TARGET = 1;
+    const unsigned char ERRORTYPECHAR_TARGET_NOT_OWNED = 2;
+    
+    class Error : public results::Result {
+        bool fatalToBatch_;
+    public:
+        Error(unsigned char error, unsigned long cost, bool fatalToBatch);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static Error* consumeFromBuf(unsigned char error, unsigned long cost, unsigned char **ptrPtr);
+        bool fatalToBatch();
+        virtual std::string what();
+    };
+    
+    class InvalidTarget : public Error {
+        std::string target_;
+    public:
+        InvalidTarget(std::string target, unsigned long cost, bool fatalToBatch);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static InvalidTarget* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
+        std::string target();
+        std::string what();
+    };
+    
+    class TargetNotOwned : public Error {
+        std::string target_;
+    public:
+        TargetNotOwned(std::string target, unsigned long cost, bool fatalToBatch);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static TargetNotOwned* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
+        std::string target();
+        std::string what();
+    };
     
 }//namespace commands::errors
 

@@ -1,17 +1,9 @@
 #define _SCL_SECURE_NO_WARNINGS
 
-//#include <cryptopp/osrng.h>
-//#include <cryptopp/rsa.h>
-//#include <cryptopp/files.h>
-//#include <cryptopp/base64.h>
-//#include <cryptopp/hex.h>
-//#include <cryptopp/ripemd.h>
-
 #include <iostream>
 #include <string>
 #include <map>
 #include <boost/asio.hpp>
-//#include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/lexical_cast.hpp>
 #include <stdexcept>
@@ -170,6 +162,11 @@ public:
         disconnectFromNetvend();
         
         boost::shared_ptr<commands::results::Result> result = response->commandResultBatch()->results()->at(0);
+        
+        if (result->error()) {
+            boost::shared_ptr<commands::errors::Error> error = boost::dynamic_pointer_cast<commands::errors::Error>(result);
+            throw error;
+        }
         
         return result;
     }

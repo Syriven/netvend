@@ -1,4 +1,3 @@
-
 #include "commands.h"
 
 namespace commands {
@@ -147,7 +146,7 @@ namespace commands {
 
 namespace results {
 
-    Result::Result(unsigned char error, unsigned int cost)
+    Result::Result(unsigned char error, unsigned long cost)
     : error_(error), cost_(cost)
     {}
     
@@ -163,11 +162,11 @@ namespace results {
 
     Result* Result::consumeFromBuf(unsigned char** ptrPtr, unsigned char commandType) {
         unsigned char error;
-        unsigned int cost;
+        unsigned long cost;
         *ptrPtr += unpack(*ptrPtr, "CL", &error, &cost);
         
         if (error) {
-            //return errors::Error::consumeFromBuf(error, cost, ptrPtr);
+            return errors::Error::consumeFromBuf(error, cost, ptrPtr);
         }
         
         else if (commandType == commands::COMMANDTYPECHAR_CREATE_POCKET) {
@@ -182,7 +181,7 @@ namespace results {
         }
     }
 
-    unsigned int Result::cost() {
+    unsigned long Result::cost() {
         return cost_;
     }
     
@@ -220,7 +219,7 @@ namespace results {
         }
     }
     
-    void Batch::consumeDataFromBuf(unsigned char **ptrPtr) {
+    void Batch::consumeFromBuf(unsigned char **ptrPtr) {
         unsigned char numCmds;
         *ptrPtr += unpack(*ptrPtr, "C", &numCmds);
         
@@ -238,13 +237,13 @@ namespace results {
         return &results_;
     }
     
-    unsigned int Batch::cost() {
+    unsigned long Batch::cost() {
         return cost_;
     }
 
     
     
-    CreatePocket::CreatePocket(int cost, unsigned long pocketID)
+    CreatePocket::CreatePocket(unsigned long cost, unsigned long pocketID)
     : Result(false, cost), pocketID_(pocketID)
     {}
 
@@ -260,7 +259,7 @@ namespace results {
         assert(place == vch->size());
     }
 
-    commands::results::CreatePocket* CreatePocket::consumeFromBuf(int cost, unsigned char **ptrPtr) {
+    commands::results::CreatePocket* CreatePocket::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
         unsigned long pocketID;
         *ptrPtr += unpack(*ptrPtr, "L", &pocketID);
         
@@ -273,7 +272,7 @@ namespace results {
     
     
     
-    RequestPocketDepositAddress::RequestPocketDepositAddress(int cost, std::string depositAddress)
+    RequestPocketDepositAddress::RequestPocketDepositAddress(unsigned long cost, std::string depositAddress)
     : Result(false, cost), depositAddress_(depositAddress)
     {}
     
@@ -282,18 +281,19 @@ namespace results {
         
         static const size_t DATA_SIZE = MAX_ADDRESS_SIZE;
         
-        unsigned int place = vch->size();
+        unsigned long place = vch->size();
         
         vch->resize(place + DATA_SIZE);
         memset(vch->data()+place, '\0', DATA_SIZE);
         std::copy(depositAddress_.begin(), depositAddress_.end(), vch->begin()+place);
     }
     
-    commands::results::RequestPocketDepositAddress* RequestPocketDepositAddress::consumeFromBuf(int cost, unsigned char **ptrPtr) {
+    commands::results::RequestPocketDepositAddress* RequestPocketDepositAddress::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
         unsigned char buf[MAX_ADDRESS_SIZE + 1];
         memset(buf, '\0', MAX_ADDRESS_SIZE + 1);
         
         std::copy_n(*ptrPtr, MAX_ADDRESS_SIZE, buf);
+        *ptrPtr += MAX_ADDRESS_SIZE;
         
         //this will interpret the first \0 as the end, so
         //an address less than 34 chars will result in the correct length string
@@ -310,31 +310,87 @@ namespace results {
 
 namespace errors {
 
-//     Error::Error(unsigned char error, unsigned int cost, bool fatalToBatch)
-//     : results::Result(error, cost), fatalToBatch_(fatalToBatch)
-//     {}
-//     
-//     void Error::writeToVch(std::vector<unsigned char>* vch) {
-//         results::Result::writeToVch(vch);
-//         
-//         static const size_t DATA_SIZE = PACK_C_SIZE;
-//         
-//         unsigned int place = vch->size();
-//         
-//         vch->resize(place + DATA_SIZE);
-//         place += pack(vch->data()+place, "B", fatalToBatch_);
-//         
-//         assert(place == vch->size());
-//     }
-//     
-//     static Error* Error::consumeFromBuf(unsigned char error, unsigned int cost, unsigned char **ptrPtr) {
-//         bool fatalToBatch;
-//         ptrPtr += unpack(ptrPtr, "B", &fatalToBatch);
-//         
-//         if (error == ERRORTYPECHAR_INVALID_TARGET) {
-//             return InvalidTarget(
-//         }
-//     }
+    Error::Error(unsigned char error, unsigned long cost, bool fatalToBatch)
+    : results::Result(error, cost), fatalToBatch_(fatalToBatch)
+    {}
+    
+    void Error::writeToVch(std::vector<unsigned char>* vch) {
+        results::Result::writeToVch(vch);
+        
+        static const size_t DATA_SIZE = PACK_B_SIZE;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        place += pack(vch->data()+place, "B", fatalToBatch_);
+        
+        assert(place == vch->size());
+    }
+    
+    Error* Error::consumeFromBuf(unsigned char error, unsigned long cost, unsigned char **ptrPtr) {
+        bool fatalToBatch;
+        *ptrPtr += unpack(*ptrPtr, "B", &fatalToBatch);
+        
+        if (error == ERRORTYPECHAR_INVALID_TARGET) {
+            return InvalidTarget::consumeFromBuf(cost, fatalToBatch, ptrPtr);
+        }
+        else if (error == ERRORTYPECHAR_TARGET_NOT_OWNED) {
+            //return TargetNotOwned::consumeFromBuf(cost, fatalToBatch, ptrPtr);
+        }
+        else {
+            throw std::runtime_error("bad response; errorTypeChar " +  boost::lexical_cast<std::string>(error) + " unrecognized.");
+        }
+        return NULL;
+    }
+    
+    bool Error::fatalToBatch() {
+        return fatalToBatch_;
+    }
+    
+    std::string Error::what() {
+        return "Unspecified Error";
+    }
+    
+    
+    
+    InvalidTarget::InvalidTarget(std::string target, unsigned long cost, bool fatalToBatch)
+    : Error(ERRORTYPECHAR_INVALID_TARGET, cost, fatalToBatch), target_(target)
+    {}
+    
+    void InvalidTarget::writeToVch(std::vector<unsigned char>* vch) {
+        Error::writeToVch(vch);
+        
+        unsigned char targetSize = target_.size();
+        static const size_t DATA_SIZE = PACK_C_SIZE + targetSize;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        place += pack(vch->data()+place, "C", targetSize);
+        std::copy(target_.begin(), target_.end(), vch->begin()+place);
+        
+        assert(place+targetSize == vch->size());
+    }
+    
+    InvalidTarget* InvalidTarget::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+        unsigned char targetSize;
+        *ptrPtr += unpack(*ptrPtr, "C", &targetSize);
+        
+        std::string target;
+        target.resize(targetSize);
+        std::copy_n(*ptrPtr, targetSize, target.begin());
+        *ptrPtr += targetSize;
+        
+        return new InvalidTarget(target, cost, fatalToBatch);
+    }
+    
+    std::string InvalidTarget::target() {
+        return target_;
+    }
+    
+    std::string InvalidTarget::what() {
+        return std::string("Invalid target '") + target_ + std::string("'");
+    }
     
 }//namespace commands::errors
 

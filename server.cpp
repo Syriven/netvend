@@ -16,6 +16,7 @@
 #include "commands.h"
 #include "nv_packet.h"
 #include "nv_response.h"
+#include "nv_exception.h"
 
 using boost::asio::ip::tcp;
 
@@ -76,7 +77,13 @@ boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequest
     
     unsigned int pocketID = command->pocketID();
     
-    database::updatePocketDepositAddress(dbConn, agentAddress, pocketID, depositAddress);
+    try {
+        database::updatePocketDepositAddress(dbConn, agentAddress, pocketID, depositAddress);
+    }
+    catch (database::NoRowFoundException &e) {
+        commands::errors::InvalidTarget* commandError = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pocketID), 0, true);
+        throw NetvendCommandException(commandError);
+    }
     
     boost::shared_ptr<commands::results::RequestPocketDepositAddress> rpdaResult(
       new commands::results::RequestPocketDepositAddress(0, depositAddress)
@@ -135,8 +142,22 @@ networking::CommandBatchResponse processCommandBatchPacket(boost::shared_ptr<net
     
     for (unsigned int i=0; i < cb->commands()->size(); i++) {
         boost::shared_ptr<commands::Command> command = (*(cb->commands()))[i];
-        boost::shared_ptr<commands::results::Result> result = processCommand(packet->agentAddress(), command);
-        crb->addResult(result);
+        try {
+            boost::shared_ptr<commands::results::Result> result = processCommand(packet->agentAddress(), command);
+            crb->addResult(result);
+        }
+        catch (NetvendCommandException &exception) {
+            boost::shared_ptr<commands::errors::Error> commandError = exception.commandError();
+            std::cout << commandError->error() << std::endl;
+            crb->addResult(commandError);
+            if (commandError->fatalToBatch()) {
+                std::cout << "command " << i << " had fatal error " << commandError->what() << std::endl;
+                break;
+            }
+            else {
+                std::cout << "command " << i << " had nonfatal error " << commandError->what() << std::endl;
+            }
+        }
     }
     
     return networking::CommandBatchResponse(crb, commands::COMMANDBATCH_COMPLETION_ALL);

@@ -15,6 +15,7 @@
 #define unpack754_32(i) (unpack754((i), 32, 8))
 #define unpack754_64(i) (unpack754((i), 64, 11))
 
+const unsigned int PACK_B_SIZE = 1;
 const unsigned int PACK_C_SIZE = 1;
 const unsigned int PACK_H_SIZE = 2;
 const unsigned int PACK_L_SIZE = 4;
