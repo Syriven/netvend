@@ -109,34 +109,37 @@ namespace errors {
     const unsigned char ERRORTYPECHAR_INVALID_TARGET = 1;
     const unsigned char ERRORTYPECHAR_TARGET_NOT_OWNED = 2;
     
-    class Error : public results::Result {
+    class Error : public results::Result, public std::runtime_error {
         bool fatalToBatch_;
+    protected:
+        std::string what_;
     public:
         Error(unsigned char error, unsigned long cost, bool fatalToBatch);
         void writeToVch(std::vector<unsigned char>* vch);
         static Error* consumeFromBuf(unsigned char error, unsigned long cost, unsigned char **ptrPtr);
         bool fatalToBatch();
-        virtual std::string what();
+        virtual ~Error() throw() {}
+        const char* what() const noexcept;
     };
     
     class InvalidTarget : public Error {
         std::string target_;
     public:
         InvalidTarget(std::string target, unsigned long cost, bool fatalToBatch);
+        void setWhat();
         void writeToVch(std::vector<unsigned char>* vch);
         static InvalidTarget* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
         std::string target();
-        std::string what();
     };
     
     class TargetNotOwned : public Error {
         std::string target_;
     public:
         TargetNotOwned(std::string target, unsigned long cost, bool fatalToBatch);
+        void setWhat();
         void writeToVch(std::vector<unsigned char>* vch);
         static TargetNotOwned* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
         std::string target();
-        std::string what();
     };
     
 }//namespace commands::errors

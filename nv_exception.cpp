@@ -1,7 +1,7 @@
 #include "nv_exception.h"
 
 NetvendCommandException::NetvendCommandException(commands::errors::Error* commandError)
-: runtime_error(commandError->what())
+: runtime_error("Netvend agent command error.")
 {
     commandError_ = boost::shared_ptr<commands::errors::Error>(commandError);
 }

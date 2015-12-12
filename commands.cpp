@@ -311,8 +311,10 @@ namespace results {
 namespace errors {
 
     Error::Error(unsigned char error, unsigned long cost, bool fatalToBatch)
-    : results::Result(error, cost), fatalToBatch_(fatalToBatch)
-    {}
+    : results::Result(error, cost), std::runtime_error("Netvend agent command error"), fatalToBatch_(fatalToBatch)
+    {
+        what_ = "what_ member not set";
+    }
     
     void Error::writeToVch(std::vector<unsigned char>* vch) {
         results::Result::writeToVch(vch);
@@ -335,7 +337,7 @@ namespace errors {
             return InvalidTarget::consumeFromBuf(cost, fatalToBatch, ptrPtr);
         }
         else if (error == ERRORTYPECHAR_TARGET_NOT_OWNED) {
-            //return TargetNotOwned::consumeFromBuf(cost, fatalToBatch, ptrPtr);
+            return TargetNotOwned::consumeFromBuf(cost, fatalToBatch, ptrPtr);
         }
         else {
             throw std::runtime_error("bad response; errorTypeChar " +  boost::lexical_cast<std::string>(error) + " unrecognized.");
@@ -347,15 +349,21 @@ namespace errors {
         return fatalToBatch_;
     }
     
-    std::string Error::what() {
-        return "Unspecified Error";
+    const char* Error::what() const noexcept {
+        return what_.c_str();
     }
     
     
     
     InvalidTarget::InvalidTarget(std::string target, unsigned long cost, bool fatalToBatch)
     : Error(ERRORTYPECHAR_INVALID_TARGET, cost, fatalToBatch), target_(target)
-    {}
+    {
+        setWhat();
+    }
+    
+    void InvalidTarget::setWhat() {
+        what_ = std::string("Invalid target '") + target_ + std::string("'");
+    }
     
     void InvalidTarget::writeToVch(std::vector<unsigned char>* vch) {
         Error::writeToVch(vch);
@@ -388,8 +396,47 @@ namespace errors {
         return target_;
     }
     
-    std::string InvalidTarget::what() {
-        return std::string("Invalid target '") + target_ + std::string("'");
+    
+    
+    TargetNotOwned::TargetNotOwned(std::string target, unsigned long cost, bool fatalToBatch)
+    : Error(ERRORTYPECHAR_TARGET_NOT_OWNED, cost, fatalToBatch), target_(target)
+    {
+        setWhat();
+    }
+    
+    void TargetNotOwned::setWhat() {
+        what_ = std::string("Target '") + target_ + std::string("' is not owned by this agent.");
+    }
+    
+    void TargetNotOwned::writeToVch(std::vector<unsigned char>* vch) {
+        Error::writeToVch(vch);
+        
+        unsigned char targetSize = target_.size();
+        static const size_t DATA_SIZE = PACK_C_SIZE + targetSize;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        place += pack(vch->data()+place, "C", targetSize);
+        std::copy(target_.begin(), target_.end(), vch->begin()+place);
+        
+        assert(place+targetSize == vch->size());
+    }
+    
+    TargetNotOwned* TargetNotOwned::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+        unsigned char targetSize;
+        *ptrPtr += unpack(*ptrPtr, "C", &targetSize);
+        
+        std::string target;
+        target.resize(targetSize);
+        std::copy_n(*ptrPtr, targetSize, target.begin());
+        *ptrPtr += targetSize;
+        
+        return new TargetNotOwned(target, cost, fatalToBatch);
+    }
+    
+    std::string TargetNotOwned::target() {
+        return target_;
     }
     
 }//namespace commands::errors

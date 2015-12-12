@@ -73,17 +73,28 @@ boost::shared_ptr<commands::results::CreatePocket> processCreatePocketCommand(st
 }
 
 boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequestPocketDepositAddressCommand(std::string agentAddress, boost::shared_ptr<commands::RequestPocketDepositAddress> command) {
-    std::string depositAddress = btc::getNewDepositAddress();
-    
     unsigned int pocketID = command->pocketID();
     
+    //first check for existence and correct ownership of the pocket
+    std::string fetchedAgentAddress;
     try {
-        database::updatePocketDepositAddress(dbConn, agentAddress, pocketID, depositAddress);
+        fetchedAgentAddress = database::fetchPocketOwner(dbConn, pocketID);
     }
     catch (database::NoRowFoundException &e) {
-        commands::errors::InvalidTarget* commandError = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pocketID), 0, true);
-        throw NetvendCommandException(commandError);
+        //Row doesn't exist; pocketID is invalid
+        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pocketID), 0, true);
+        throw NetvendCommandException(error);
     }
+    if (fetchedAgentAddress != agentAddress) {
+        //Pocket exists but is owned by a different agent
+        commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(pocketID), 0, true);
+        throw NetvendCommandException(error);
+    }
+    
+    //Pocket must exist and be owned by the agent.
+    std::string depositAddress = btc::getNewDepositAddress();
+    
+    database::updatePocketDepositAddress(dbConn, agentAddress, pocketID, depositAddress);
     
     boost::shared_ptr<commands::results::RequestPocketDepositAddress> rpdaResult(
       new commands::results::RequestPocketDepositAddress(0, depositAddress)

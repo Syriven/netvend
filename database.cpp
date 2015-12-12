@@ -30,6 +30,9 @@ void prepareConnection(pqxx::connection **dbConn) {
     //insert new pocket without deposit address or owner
     (*dbConn)->prepare(INSERT_POCKET_WITHOUT_OWNER, "INSERT INTO pockets (owner) VALUES (NULL) RETURNING pocket_id");
     
+    //fetch owner of pocket given pocketID
+    (*dbConn)->prepare(FETCH_POCKET_OWNER, "SELECT owner FROM pockets WHERE pocket_id = $1"); 
+    
     //update pocket owner
     (*dbConn)->prepare(UPDATE_POCKET_OWNER, "UPDATE pockets SET owner = $2 WHERE pocket_id = $1");
     
@@ -102,6 +105,20 @@ unsigned long insertPocket(pqxx::connection *dbConn, std::string ownerAddress) {
 
 unsigned long insertPocket(pqxx::connection *dbConn) {
     return insertPocket(dbConn, "", "");
+}
+
+std::string fetchPocketOwner(pqxx::connection *dbConn, unsigned long pocketID) {
+    pqxx::work tx(*dbConn, "FetchPocketOwnerWork");
+    
+    pqxx::result result = tx.prepared(FETCH_POCKET_OWNER)(pocketID).exec();
+    
+    if (result.size() == 0) {
+        throw NoRowFoundException();
+    }
+    
+    std::string owner;
+    result[0][0].to(owner);
+    return owner;
 }
 
 void updatePocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string newOwnerAddress) {

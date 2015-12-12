@@ -165,7 +165,7 @@ public:
         
         if (result->error()) {
             boost::shared_ptr<commands::errors::Error> error = boost::dynamic_pointer_cast<commands::errors::Error>(result);
-            throw error;
+            throw *error;
         }
         
         return result;
