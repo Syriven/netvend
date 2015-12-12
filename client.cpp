@@ -171,8 +171,8 @@ public:
         return result;
     }
     
-    unsigned long createPocket(bool isRequestingDepositAddress) {
-        boost::shared_ptr<commands::Command> command(new commands::CreatePocket(isRequestingDepositAddress));
+    unsigned long createPocket() {
+        boost::shared_ptr<commands::Command> command(new commands::CreatePocket());
         
         boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
         
@@ -285,9 +285,7 @@ int main() {
             }
         }
         else if (commandCode == "cp") {
-            bool requestDepositAddress;
-            std::cin >> requestDepositAddress;
-            std::cout << "Pocket created with id " << selectedAgent->createPocket(requestDepositAddress) << std::endl;
+            std::cout << "Pocket created with id " << selectedAgent->createPocket() << std::endl;
         }
         else if (commandCode == "rpda") {
             unsigned long pocketID;

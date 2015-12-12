@@ -3,7 +3,7 @@
 namespace btc {
 
 std::string getNewDepositAddress() {
-    return std::string("dummy dep.address");
+    return std::string("dummy.dep.address");
 }
 
 }//namespace btc

@@ -82,35 +82,18 @@ namespace commands {
     
     
 
-    CreatePocket::CreatePocket(bool requestingDepositAddress)
-    : Command(COMMANDTYPECHAR_CREATE_POCKET), requestingDepositAddress_(requestingDepositAddress)
+    CreatePocket::CreatePocket()
+    : Command(COMMANDTYPECHAR_CREATE_POCKET)
     {}
 
     void CreatePocket::writeToVch(std::vector<unsigned char>* vch) {
         Command::writeToVch(vch);
-        
-        unsigned char requestingDepositAddressChar = (int)requestingDepositAddress_;
-        
-        static const size_t DATA_SIZE = PACK_C_SIZE;
-        
-        unsigned int place = vch->size();
-        
-        vch->resize(place + DATA_SIZE);
-        place += pack(vch->data()+place, "C", requestingDepositAddressChar);
-        assert(place == vch->size());
     }
 
     commands::CreatePocket* CreatePocket::consumeFromBuf(unsigned char **ptrPtr) {
-        unsigned char requestingDepositAddressChar;
-        *ptrPtr += unpack(*ptrPtr, "C", &requestingDepositAddressChar);
-        
-        commands::CreatePocket* command = new CreatePocket((bool)requestingDepositAddressChar);
+        commands::CreatePocket* command = new CreatePocket();
         
         return command;
-    }
-
-    bool CreatePocket::requestingDepositAddress() {
-        return requestingDepositAddress_;
     }
 
     

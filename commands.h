@@ -40,12 +40,10 @@ namespace commands {
     };
 
     class CreatePocket : public Command {
-        bool requestingDepositAddress_;
     public:
-        CreatePocket(bool requestingDepositAddress);
+        CreatePocket();
         void writeToVch(std::vector<unsigned char>* vch);
         static commands::CreatePocket* consumeFromBuf(unsigned char **ptrPtr);
-        bool requestingDepositAddress();
     };
     
     class RequestPocketDepositAddress : public Command {

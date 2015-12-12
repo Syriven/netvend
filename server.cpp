@@ -58,14 +58,7 @@ networking::HandshakeResponse processHandshakePacket(boost::shared_ptr<networkin
 }
 
 boost::shared_ptr<commands::results::CreatePocket> processCreatePocketCommand(std::string agentAddress, boost::shared_ptr<commands::CreatePocket> command) {    
-    unsigned int pocketID;
-    if (command->requestingDepositAddress()) {
-        std::string depositAddress = btc::getNewDepositAddress();
-        pocketID = database::insertPocket(dbConn, agentAddress, depositAddress);
-    }
-    else {
-        pocketID = database::insertPocket(dbConn, agentAddress);
-    }
+    unsigned int pocketID = database::insertPocket(dbConn, agentAddress);
     
     int cost = 0;
     
