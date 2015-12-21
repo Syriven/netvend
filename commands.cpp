@@ -26,6 +26,12 @@ namespace commands {
         if (typeChar == COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS) {
             return commands::RequestPocketDepositAddress::consumeFromBuf(ptrPtr);
         }
+        if (typeChar == COMMANDTYPECHAR_CREATE_CHUNK) {
+            return commands::CreateChunk::consumeFromBuf(ptrPtr);
+        }
+        if (typeChar == COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID) {
+            return commands::UpdateChunkByID::consumeFromBuf(ptrPtr);
+        }
         else {
             throw std::runtime_error("bad packet; unrecognized command typechar '" + boost::lexical_cast<std::string>(typeChar) + "'");
             return NULL;
@@ -126,6 +132,104 @@ namespace commands {
     unsigned long RequestPocketDepositAddress::pocketID() {
         return pocketID_;
     }
+    
+    
+    
+    CreateChunk::CreateChunk(std::string name, unsigned long pocketID)
+    : Command(COMMANDTYPECHAR_CREATE_CHUNK), name_(name), pocketID_(pocketID)
+    {}
+    
+    void CreateChunk::writeToVch(std::vector<unsigned char>* vch) {
+        Command::writeToVch(vch);
+        
+        unsigned char nameSize = name_.size();
+        
+        const size_t DATA_SIZE = PACK_C_SIZE + nameSize + PACK_L_SIZE;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        
+        place += pack(vch->data()+place, "C", nameSize);
+        
+        std::copy(name_.begin(), name_.end(), vch->data()+place);
+        place += nameSize;
+        
+        place += pack(vch->data()+place, "L", pocketID_);
+        
+        assert(place == vch->size());
+    }
+    
+    commands::CreateChunk* CreateChunk::consumeFromBuf(unsigned char **ptrPtr) {
+        unsigned char nameSize;
+        *ptrPtr += unpack(*ptrPtr, "C", &nameSize);
+        
+        std::string name;
+        name.resize(nameSize);
+        std::copy_n(*ptrPtr, nameSize, name.begin());
+        *ptrPtr += nameSize;
+        
+        unsigned long pocketID;
+        *ptrPtr += unpack(*ptrPtr, "L", &pocketID);
+        
+        return new commands::CreateChunk(name, pocketID);
+    }
+    
+    std::string CreateChunk::name() {return name_;}
+    unsigned long CreateChunk::pocketID() {return pocketID_;}
+    
+    
+    
+    UpdateChunkByID::UpdateChunkByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize)
+    : Command(COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID), chunkID_(chunkID), data_(data), dataSize_(dataSize)
+    {
+        mustFreeData_ = false;
+    }
+    
+    UpdateChunkByID::~UpdateChunkByID() {
+        if (mustFreeData_) {
+            delete [] data_;
+        }
+    }
+    
+    void UpdateChunkByID::allocSpace() {
+        data_ = new unsigned char[(int)dataSize_];
+        mustFreeData_ = true;
+    }
+    
+    void UpdateChunkByID::writeToVch(std::vector<unsigned char>* vch) {
+        Command::writeToVch(vch);
+        
+        const size_t DATA_SIZE = PACK_L_SIZE + PACK_H_SIZE + dataSize_;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        
+        place += pack(vch->data()+place, "LH", chunkID_, dataSize_);
+        
+        std::copy_n(data_, dataSize_, vch->data()+place);
+        place += dataSize_;
+        
+        assert(place == vch->size());
+    }
+    
+    commands::UpdateChunkByID* UpdateChunkByID::consumeFromBuf(unsigned char **ptrPtr) {
+        unsigned long chunkID;
+        unsigned short dataSize;
+        *ptrPtr += unpack(*ptrPtr, "LH", &chunkID, &dataSize);
+        
+        commands::UpdateChunkByID* newWriteCmd = new UpdateChunkByID(chunkID, NULL, dataSize);
+        newWriteCmd->allocSpace();
+        std::copy_n(*ptrPtr, dataSize, newWriteCmd->data());
+        *ptrPtr += dataSize;
+        
+        return newWriteCmd;
+    }
+    
+    unsigned long UpdateChunkByID::chunkID() {return chunkID_;}
+    unsigned char* UpdateChunkByID::data() {return data_;}
+    unsigned short UpdateChunkByID::dataSize() {return dataSize_;}
 
 namespace results {
 
@@ -158,10 +262,17 @@ namespace results {
         else if (commandType == commands::COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS) {
             return results::RequestPocketDepositAddress::consumeFromBuf(cost, ptrPtr);
         }
+        else if (commandType == commands::COMMANDTYPECHAR_CREATE_CHUNK) {
+            return results::CreateChunk::consumeFromBuf(cost, ptrPtr);
+        }
+        else if (commandType == commands::COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID) {
+            return results::UpdateChunkByID::consumeFromBuf(cost, ptrPtr);
+        }
+        
         else {
             throw std::runtime_error("bad response; commandTypeChar " + boost::lexical_cast<std::string>(commandType) + " unrecognized.");
-            return NULL;
         }
+        return NULL;
     }
 
     unsigned long Result::cost() {
@@ -227,7 +338,7 @@ namespace results {
     
     
     CreatePocket::CreatePocket(unsigned long cost, unsigned long pocketID)
-    : Result(false, cost), pocketID_(pocketID)
+    : Result(errors::ERRORTYPECHAR_NONE, cost), pocketID_(pocketID)
     {}
 
     void CreatePocket::writeToVch(std::vector<unsigned char>* vch) {
@@ -242,11 +353,11 @@ namespace results {
         assert(place == vch->size());
     }
 
-    commands::results::CreatePocket* CreatePocket::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::CreatePocket* CreatePocket::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
         unsigned long pocketID;
         *ptrPtr += unpack(*ptrPtr, "L", &pocketID);
         
-        return new commands::results::CreatePocket(cost, pocketID);
+        return new results::CreatePocket(cost, pocketID);
     }
 
     unsigned long CreatePocket::pocketID() {
@@ -256,7 +367,7 @@ namespace results {
     
     
     RequestPocketDepositAddress::RequestPocketDepositAddress(unsigned long cost, std::string depositAddress)
-    : Result(false, cost), depositAddress_(depositAddress)
+    : Result(errors::ERRORTYPECHAR_NONE, cost), depositAddress_(depositAddress)
     {}
     
     void RequestPocketDepositAddress::writeToVch(std::vector<unsigned char>* vch) {
@@ -271,7 +382,7 @@ namespace results {
         std::copy(depositAddress_.begin(), depositAddress_.end(), vch->begin()+place);
     }
     
-    commands::results::RequestPocketDepositAddress* RequestPocketDepositAddress::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::RequestPocketDepositAddress* RequestPocketDepositAddress::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
         unsigned char buf[MAX_ADDRESS_SIZE + 1];
         memset(buf, '\0', MAX_ADDRESS_SIZE + 1);
         
@@ -282,11 +393,52 @@ namespace results {
         //an address less than 34 chars will result in the correct length string
         std::string depositAddress((char*)buf);
         
-        return new commands::results::RequestPocketDepositAddress(cost, depositAddress);
+        return new results::RequestPocketDepositAddress(cost, depositAddress);
     }
     
     std::string RequestPocketDepositAddress::depositAddress() {
         return depositAddress_;
+    }
+    
+    
+    
+    CreateChunk::CreateChunk(unsigned long cost, unsigned long chunkID)
+    : Result(errors::ERRORTYPECHAR_NONE, cost), chunkID_(chunkID)
+    {}
+    
+    void CreateChunk::writeToVch(std::vector<unsigned char>* vch) {
+        Result::writeToVch(vch);
+        
+        static const size_t DATA_SIZE = PACK_L_SIZE;
+        
+        unsigned long place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        place += pack(vch->data() + place, "L", chunkID_);
+        assert(place == vch->size());
+    }
+    
+    results::CreateChunk* CreateChunk::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+        unsigned long chunkID;
+        *ptrPtr += unpack(*ptrPtr, "L", &chunkID);
+        
+        return new results::CreateChunk(cost, chunkID);
+    }
+    
+    unsigned long CreateChunk::chunkID() {return chunkID_;}
+    
+    
+    
+    UpdateChunkByID::UpdateChunkByID(unsigned long cost)
+    : Result(errors::ERRORTYPECHAR_NONE, cost)
+    {}
+    
+    void UpdateChunkByID::writeToVch(std::vector<unsigned char>* vch) {
+        Result::writeToVch(vch);
+    }
+    
+    results::UpdateChunkByID* UpdateChunkByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+        return new results::UpdateChunkByID(cost);
     }
 
 }//namesace commands::results
@@ -352,7 +504,7 @@ namespace errors {
         Error::writeToVch(vch);
         
         unsigned char targetSize = target_.size();
-        static const size_t DATA_SIZE = PACK_C_SIZE + targetSize;
+        const size_t DATA_SIZE = PACK_C_SIZE + targetSize;
         
         unsigned int place = vch->size();
         
@@ -395,7 +547,7 @@ namespace errors {
         Error::writeToVch(vch);
         
         unsigned char targetSize = target_.size();
-        static const size_t DATA_SIZE = PACK_C_SIZE + targetSize;
+        const size_t DATA_SIZE = PACK_C_SIZE + targetSize;
         
         unsigned int place = vch->size();
         

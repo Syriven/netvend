@@ -15,32 +15,21 @@ void prepareConnection(pqxx::connection **dbConn) {
     
     std::cout << "peparing queries..." << std::endl;
     
-    //check if agent row exists
     (*dbConn)->prepare(CHECK_AGENT_EXISTS, "SELECT EXISTS(SELECT 1 FROM agents WHERE agent_address = $1)");
-    
-    //insert new agent row
     (*dbConn)->prepare(INSERT_AGENT, "INSERT INTO agents (agent_address, public_key, default_pocket) VALUES ($1, $2, $3)");
+    (*dbConn)->prepare(FETCH_AGENT_PUBKEY, "SELECT public_key FROM agents WHERE agent_address = $1");
     
-    //insert new pocket row with deposit address
     (*dbConn)->prepare(INSERT_POCKET_WITH_DEPOSIT_ADDRESS, "INSERT INTO pockets (owner, deposit_address) VALUES ($1, $2) RETURNING pocket_id");
-    
-    //insert new pocket row without deposit address
     (*dbConn)->prepare(INSERT_POCKET, "INSERT INTO pockets (owner) VALUES ($1) RETURNING pocket_id");
-    
-    //insert new pocket without deposit address or owner
     (*dbConn)->prepare(INSERT_POCKET_WITHOUT_OWNER, "INSERT INTO pockets (owner) VALUES (NULL) RETURNING pocket_id");
-    
-    //fetch owner of pocket given pocketID
     (*dbConn)->prepare(FETCH_POCKET_OWNER, "SELECT owner FROM pockets WHERE pocket_id = $1"); 
-    
-    //update pocket owner
     (*dbConn)->prepare(UPDATE_POCKET_OWNER, "UPDATE pockets SET owner = $2 WHERE pocket_id = $1");
-    
-    //update pocket deposit address
     (*dbConn)->prepare(UPDATE_POCKET_DEPOSIT_ADDRESS, "UPDATE pockets SET deposit_address = $3 WHERE owner = $1 AND pocket_id = $2");
     
-    //fetch agent public key
-    (*dbConn)->prepare(FETCH_AGENT_PUBKEY, "SELECT public_key FROM agents WHERE agent_address = $1");
+    
+    (*dbConn)->prepare(INSERT_CHUNK, "INSERT INTO chunks (owner, name, pocket) VALUES ($1, $2, $3) RETURNING chunk_id");
+    (*dbConn)->prepare(FETCH_CHUNK_OWNER, "SELECT owner FROM chunks WHERE chunk_id = $1");
+    (*dbConn)->prepare(UPDATE_CHUNK_BY_ID, "UPDATE chunks SET data = $2 WHERE chunk_id = $1");
     
     std::cout << "queries prepared." << std::endl;
 }
@@ -72,6 +61,21 @@ void insertAgent(pqxx::connection *dbConn, std::string agentAddress, std::vector
         throw e;// DuplicateUniqueValueException();
     }
 }
+
+crypto::RSAPubkey fetchAgentPubkey(pqxx::connection *dbConn, std::string agentAddress) {
+    pqxx::work tx(*dbConn, "FetchAgentPubkeyWork");
+    pqxx::result result = tx.prepared(FETCH_AGENT_PUBKEY)(agentAddress).exec();
+    tx.commit();
+    
+    if (result.size() == 0) {
+        throw NoRowFoundException();
+    }
+    pqxx::binarystring pubkeyBlob(result[0][0]);
+    
+    return crypto::decodePubkey(pubkeyBlob.data(), pubkeyBlob.size());
+}
+
+
 
 unsigned long insertPocket(pqxx::connection *dbConn, std::string ownerAddress, std::string depositAddress) {
     pqxx::work tx(*dbConn, "InsertPocketWork");
@@ -142,17 +146,48 @@ void updatePocketDepositAddress(pqxx::connection *dbConn, std::string ownerAddre
     }
 }
 
-crypto::RSAPubkey fetchAgentPubkey(pqxx::connection *dbConn, std::string agentAddress) {
-    pqxx::work tx(*dbConn, "FetchAgentPubkeyWork");
-    pqxx::result result = tx.prepared(FETCH_AGENT_PUBKEY)(agentAddress).exec();
+
+
+unsigned long insertChunk(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID) {
+    pqxx::work tx(*dbConn, "InsertChunkWork");
+    pqxx::result result;
+    
+    result = tx.prepared(INSERT_CHUNK)(ownerAddress)(name)(pocketID).exec();
+    
     tx.commit();
+    
+    unsigned long chunkID;
+    result[0][0].to(chunkID);
+    return chunkID;
+}
+
+std::string fetchChunkOwner(pqxx::connection *dbConn, unsigned long chunkID) {
+    pqxx::work tx(*dbConn, "FetchChunkOwnerWork");
+    
+    pqxx::result result = tx.prepared(FETCH_CHUNK_OWNER)(chunkID).exec();
     
     if (result.size() == 0) {
         throw NoRowFoundException();
     }
-    pqxx::binarystring pubkeyBlob(result[0][0]);
     
-    return crypto::decodePubkey(pubkeyBlob.data(), pubkeyBlob.size());
+    std::string owner;
+    result[0][0].to(owner);
+    return owner;
+}
+
+void updateChunkByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
+    pqxx::work tx(*dbConn, "UpdateChunkByIDWork");
+    pqxx::result result;
+    
+    pqxx::binarystring dataBlob(data, dataSize);
+    
+    result = tx.prepared(UPDATE_CHUNK_BY_ID)(chunkID)(dataBlob).exec();
+    
+    tx.commit();
+    
+    if (result.affected_rows() == 0) {
+        throw NoRowFoundException();
+    }
 }
 
 }//namespace database

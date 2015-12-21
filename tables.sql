@@ -13,4 +13,13 @@ CREATE TABLE pockets (
     PRIMARY KEY (pocket_id)
 );
 
+CREATE TABLE chunks (
+    chunk_id SERIAL,
+    owner character(34) REFERENCES agents(agent_address),
+    name varchar(256),
+    pocket int NOT NULL REFERENCES pockets(pocket_id),
+    data bytea,
+    PRIMARY KEY (chunk_id)
+);
+
 ALTER TABLE agents ADD FOREIGN KEY (default_pocket) REFERENCES pockets(pocket_id);

@@ -1,4 +1,3 @@
-
 #ifndef NETVEND_NV_COMMANDS_H
 #define NETVEND_NV_COMMANDS_H
 
@@ -17,8 +16,10 @@ namespace commands {
     const unsigned char COMMANDBATCH_COMPLETION_SOME = 1;
     const unsigned char COMMANDBATCH_COMPLETION_ALL = 2;
     
-    const char COMMANDTYPECHAR_CREATE_POCKET = 'p';
-    const char COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS = 'd';
+    const char COMMANDTYPECHAR_CREATE_POCKET = 0;
+    const char COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS = 1;
+    const char COMMANDTYPECHAR_CREATE_CHUNK = 2;
+    const char COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID = 3;
 
     class Command {
         unsigned char typeChar_;
@@ -53,6 +54,33 @@ namespace commands {
         void writeToVch(std::vector<unsigned char>* vch);
         static commands::RequestPocketDepositAddress* consumeFromBuf(unsigned char **ptrPtr);
         unsigned long pocketID();
+    };
+    
+    class CreateChunk : public Command {
+        std::string name_;
+        unsigned long pocketID_;
+    public:
+        CreateChunk(std::string name, unsigned long pocketID);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static commands::CreateChunk* consumeFromBuf(unsigned char **ptrPtr);
+        std::string name();
+        unsigned long pocketID();
+    };
+    
+    class UpdateChunkByID : public Command {
+        unsigned long chunkID_;
+        unsigned char* data_;
+        unsigned short dataSize_;
+        bool mustFreeData_;
+    public:
+        UpdateChunkByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize);
+        ~UpdateChunkByID();
+        void allocSpace();
+        void writeToVch(std::vector<unsigned char>* vch);
+        static commands::UpdateChunkByID* consumeFromBuf(unsigned char **ptrPtr);
+        unsigned long chunkID();
+        unsigned char* data();
+        unsigned short dataSize();
     };
 
 namespace results {
@@ -97,6 +125,22 @@ namespace results {
         void writeToVch(std::vector<unsigned char>* vch);
         static results::RequestPocketDepositAddress* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
         std::string depositAddress();
+    };
+    
+    class CreateChunk : public Result {
+        unsigned long chunkID_;
+    public:
+        CreateChunk(unsigned long cost, unsigned long chunkID);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static results::CreateChunk* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
+        unsigned long chunkID();
+    };
+    
+    class UpdateChunkByID : public Result {
+    public:
+        UpdateChunkByID(unsigned long cost);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static results::UpdateChunkByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
     };
 
 }//namespace commands::results

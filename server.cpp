@@ -57,18 +57,8 @@ networking::HandshakeResponse processHandshakePacket(boost::shared_ptr<networkin
     }
 }
 
-boost::shared_ptr<commands::results::CreatePocket> processCreatePocketCommand(std::string agentAddress, boost::shared_ptr<commands::CreatePocket> command) {    
-    unsigned int pocketID = database::insertPocket(dbConn, agentAddress);
-    
-    int cost = 0;
-    
-    return boost::shared_ptr<commands::results::CreatePocket>(new commands::results::CreatePocket(cost, pocketID));
-}
-
-boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequestPocketDepositAddressCommand(std::string agentAddress, boost::shared_ptr<commands::RequestPocketDepositAddress> command) {
-    unsigned int pocketID = command->pocketID();
-    
-    //first check for existence and correct ownership of the pocket
+//throws appropriate errors if the pocket doesn't exist or isn't owned by the agent
+void checkOwnedPocket(unsigned long pocketID, std::string agentAddress) {
     std::string fetchedAgentAddress;
     try {
         fetchedAgentAddress = database::fetchPocketOwner(dbConn, pocketID);
@@ -83,8 +73,38 @@ boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequest
         commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(pocketID), 0, true);
         throw NetvendCommandException(error);
     }
+}
+
+void checkOwnedChunk(unsigned long chunkID, std::string agentAddress) {
+    std::string fetchedAgentAddress;
+    try {
+        fetchedAgentAddress = database::fetchChunkOwner(dbConn, chunkID);
+    }
+    catch (database::NoRowFoundException &e) {
+        //Row doesn't exist; pocketID is invalid
+        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(chunkID), 0, true);
+        throw NetvendCommandException(error);
+    }
+    if (fetchedAgentAddress != agentAddress) {
+        //Pocket exists but is owned by a different agent
+        commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(chunkID), 0, true);
+        throw NetvendCommandException(error);
+    }
+}
+
+boost::shared_ptr<commands::results::CreatePocket> processCreatePocketCommand(std::string agentAddress, boost::shared_ptr<commands::CreatePocket> command) {    
+    unsigned int pocketID = database::insertPocket(dbConn, agentAddress);
     
-    //Pocket must exist and be owned by the agent.
+    int cost = 0;
+    
+    return boost::shared_ptr<commands::results::CreatePocket>(new commands::results::CreatePocket(cost, pocketID));
+}
+
+boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequestPocketDepositAddressCommand(std::string agentAddress, boost::shared_ptr<commands::RequestPocketDepositAddress> command) {
+    unsigned long pocketID = command->pocketID();
+    
+    checkOwnedPocket(pocketID, agentAddress);
+    
     std::string depositAddress = btc::getNewDepositAddress();
     
     database::updatePocketDepositAddress(dbConn, agentAddress, pocketID, depositAddress);
@@ -94,6 +114,39 @@ boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequest
     );
     
     return rpdaResult;
+}
+
+boost::shared_ptr<commands::results::CreateChunk> processCreateChunkCommand(std::string agentAddress, boost::shared_ptr<commands::CreateChunk> command) {
+    unsigned long pocketID = command->pocketID();
+    
+    checkOwnedPocket(pocketID, agentAddress);
+    
+    std::string name = command->name();
+    
+    unsigned long chunkID = database::insertChunk(dbConn, agentAddress, name, pocketID);
+    
+    boost::shared_ptr<commands::results::CreateChunk> ccResult(
+      new commands::results::CreateChunk(0, chunkID)
+    );
+    
+    return ccResult;
+}
+
+boost::shared_ptr<commands::results::UpdateChunkByID> processUpdateChunkByIDCommand(std::string agentAddress, boost::shared_ptr<commands::UpdateChunkByID> command) {
+    unsigned long chunkID = command->chunkID();
+    
+    checkOwnedChunk(chunkID, agentAddress);
+    
+    unsigned char* data = command->data();
+    unsigned short dataSize = command->dataSize();
+    
+    database::updateChunkByID(dbConn, chunkID, data, dataSize);
+    
+    boost::shared_ptr<commands::results::UpdateChunkByID> ucbiResult(
+      new commands::results::UpdateChunkByID(0)
+    );
+    
+    return ucbiResult;
 }
 
 boost::shared_ptr<commands::results::Result> processCommand(std::string agentAddress, boost::shared_ptr<commands::Command> command) {
@@ -112,14 +165,35 @@ boost::shared_ptr<commands::results::Result> processCommand(std::string agentAdd
           boost::dynamic_pointer_cast<commands::RequestPocketDepositAddress>(command);
         
         if (rpdaCommand.get() == NULL) {
-            throw networking::NetvendDecodeException("Error decoding what seems to be a createpocket command.");
+            throw networking::NetvendDecodeException("Error decoding what seems to be an rpda command.");
         }
         
         return processRequestPocketDepositAddressCommand(agentAddress, rpdaCommand);
     }
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_CREATE_CHUNK) {
+        boost::shared_ptr<commands::CreateChunk> ccCommand = 
+        boost::dynamic_pointer_cast<commands::CreateChunk>(command);
+        
+        if (ccCommand.get() == NULL) {
+            throw networking::NetvendDecodeException("Error decoding what seems to be an CreateChunk command.");
+        }
+        
+        return processCreateChunkCommand(agentAddress, ccCommand);
+    }
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID) {
+        boost::shared_ptr<commands::UpdateChunkByID> ucbiCommand = 
+        boost::dynamic_pointer_cast<commands::UpdateChunkByID>(command);
+        
+        if (ucbiCommand.get() == NULL) {
+            throw networking::NetvendDecodeException("Error decoding what seems to be an ucbi command.");
+        }
+        
+        return processUpdateChunkByIDCommand(agentAddress, ucbiCommand);
+    }
     else {
         throw networking::NetvendDecodeException((std::string("Error decoding command with commandtypechar ") + boost::lexical_cast<std::string>(command->typeChar())).c_str());
     }
+    return NULL;
 }
 
 networking::CommandBatchResponse processCommandBatchPacket(boost::shared_ptr<networking::CommandBatchPacket> packet) {

@@ -196,6 +196,30 @@ public:
         
         return rpdaResult->depositAddress();
     }
+    
+    unsigned long createChunk(std::string name, unsigned long pocketID) {
+        boost::shared_ptr<commands::Command> command(new commands::CreateChunk(name, pocketID));
+        
+        boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
+        
+        boost::shared_ptr<commands::results::CreateChunk> ccResult =
+          boost::dynamic_pointer_cast<commands::results::CreateChunk>(result);
+        
+        assert(ccResult.get() != NULL);
+        
+        return ccResult->chunkID();
+    }
+    
+    void updateChunkByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
+        boost::shared_ptr<commands::Command> command(new commands::UpdateChunkByID(chunkID, data, dataSize));
+        
+        boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
+        
+        boost::shared_ptr<commands::results::UpdateChunkByID> ucbiResult =
+        boost::dynamic_pointer_cast<commands::results::UpdateChunkByID>(result);
+        
+        assert(ucbiResult.get() != NULL);
+    }
 };
 
 std::map<std::string, Agent> agents;
@@ -212,7 +236,9 @@ s [name] - select agent\n\
 \n\
 h - Perform netvend handshake\n\
 cp (1/0) - Create new Pocket with or without deposit address\n\
-rpda [pocketID] - Request new deposit address for pocket";
+rpda [pocketID] - Request new deposit address for pocket\n\
+cc [name] [pocketID] - Create a new data chunk with [name], thethered to pocket [pocketID]\n\
+ucbi [chunkID] [data] - Update chunk [chunkID] with [data]";
 
 void createNewAgent(std::string name, boost::asio::io_service& io, bool output=true) {
     Agent agent(io);
@@ -289,11 +315,36 @@ int main() {
         }
         else if (commandCode == "rpda") {
             unsigned long pocketID;
+            
             std::cin >> pocketID;
+            
             std::cout << "Pocket " << pocketID << " now has a deposit address " << selectedAgent->requestPocketDepositAddress(pocketID) << std::endl;
         }
+        else if (commandCode == "cc") {
+            std::string name;
+            unsigned long pocketID;
+            
+            std::cin >> name >> pocketID;
+            
+            std::cout << "Chunk " << selectedAgent->createChunk(name, pocketID) << " has been created." << std::endl;
+        }
+        else if (commandCode == "ucbi") {
+            unsigned long chunkID;
+            std::string s;
+            
+            std::cin >> chunkID >> s;
+            
+            selectedAgent->updateChunkByID(chunkID, (unsigned char*)s.data(), s.size());
+            
+            std::cout << "Chunk " << chunkID << " updated." << std::endl;
+        }
         else if (commandCode == "t") {
-            //selectedAgent->createPost(std::string("test"), std::string("oh wow dataaaa"));
+            createNewAgent("default", io);
+            selectAgent("default");
+            selectedAgent->setConnection(&nvConnection);
+            unsigned long pocket = selectedAgent->performNetvendHandshake();
+            unsigned long chunk = selectedAgent->createChunk("testchunk", pocket);
+            selectedAgent->updateChunkByID(chunk, (unsigned char*)"hi", 2);
         }
         else {
             std::cout << "Unrecognized command." << std::endl;
