@@ -1,4 +1,4 @@
-#include <pack.h>
+#include "pack.h"
 
 /*
 ** pack754() -- pack a floating point number into IEEE-754 format

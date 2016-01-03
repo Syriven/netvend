@@ -1,5 +1,4 @@
-
-#include "nv_response.h"
+#include "response.h"
 
 namespace networking {
 

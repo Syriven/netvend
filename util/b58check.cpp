@@ -1,14 +1,6 @@
-//heavily derived from Bitcoin's base58.cpp
+//heavily derived from Bitcoin's base58.cpp.
+//uses cryptopp's hash functions instead of Bitcoin's hash.h.
 
-/*notable differences:
-- uses cryptopp's hash functions instead of Bitcoin's hash.h.
-*/
-
-//#include "b58check.h"
-
-//#include <assert.h>
-//#include <stdint.h>
-//#include <string.h>
 #include <vector>
 #include <string>
 #include <cryptopp/ripemd.h>

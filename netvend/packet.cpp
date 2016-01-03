@@ -1,4 +1,4 @@
-#include "nv_packet.h"
+#include "packet.h"
 
 namespace networking {
 

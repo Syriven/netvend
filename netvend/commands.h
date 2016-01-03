@@ -7,8 +7,8 @@
 #include <iostream>
 //#include <stdexcept>
 
-#include "common_constants.h"
-#include "pack.h"
+#include "netvend/common_constants.h"
+#include "util/pack.h"
 
 namespace commands {
 

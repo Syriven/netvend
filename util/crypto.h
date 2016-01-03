@@ -9,8 +9,8 @@
 #include <cryptopp/ripemd.h>
 #include <string>
 
-#include "common_constants.h"
-#include "b58check.h"
+#include "netvend/common_constants.h"
+#include "util/b58check.h"
 
 namespace crypto {
     

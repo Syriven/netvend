@@ -8,15 +8,15 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <pqxx/pqxx>
 
-#include "common_constants.h"
-#include "database.h"
-#include "btc.h"
-#include "crypto.h"
-#include "networking.h"
-#include "commands.h"
-#include "nv_packet.h"
-#include "nv_response.h"
-#include "nv_exception.h"
+#include "netvend/common_constants.h"
+#include "util/database.h"
+#include "util/btc.h"
+#include "util/crypto.h"
+#include "util/networking.h"
+#include "netvend/commands.h"
+#include "netvend/packet.h"
+#include "netvend/response.h"
+#include "netvend/exception.h"
 
 using boost::asio::ip::tcp;
 

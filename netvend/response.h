@@ -3,10 +3,10 @@
 
 #include <string>
 
-#include "pack.h"
-#include "networking.h"
-#include "commands.h"
-#include "common_constants.h"
+#include "util/pack.h"
+#include "util/networking.h"
+#include "netvend/commands.h"
+#include "netvend/common_constants.h"
 
 namespace networking {
 

@@ -1,4 +1,4 @@
-#include "nv_exception.h"
+#include "exception.h"
 
 NetvendCommandException::NetvendCommandException(commands::errors::Error* commandError)
 : runtime_error("Netvend agent command error.")

@@ -8,12 +8,12 @@
 #include <boost/lexical_cast.hpp>
 #include <stdexcept>
 
-#include "common_constants.h"
-#include "crypto.h"
-#include "networking.h"
-#include "commands.h"
-#include "nv_packet.h"
-#include "nv_response.h"
+#include "netvend/common_constants.h"
+#include "util/crypto.h"
+#include "util/networking.h"
+#include "netvend/commands.h"
+#include "netvend/packet.h"
+#include "netvend/response.h"
 
 using boost::asio::ip::tcp;
 
@@ -235,7 +235,7 @@ l - list agents\n\
 s [name] - select agent\n\
 \n\
 h - Perform netvend handshake\n\
-cp (1/0) - Create new Pocket with or without deposit address\n\
+cp - Create new Pocket\n\
 rpda [pocketID] - Request new deposit address for pocket\n\
 cc [name] [pocketID] - Create a new data chunk with [name], thethered to pocket [pocketID]\n\
 ucbi [chunkID] [data] - Update chunk [chunkID] with [data]";

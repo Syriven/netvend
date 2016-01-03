@@ -2,7 +2,7 @@
 #include <string>
 #include <boost/shared_ptr.hpp>
 
-#include "commands.h"
+#include "netvend/commands.h"
 
 class NetvendCommandException : public std::runtime_error {
     boost::shared_ptr<commands::errors::Error> commandError_;

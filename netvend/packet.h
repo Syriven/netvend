@@ -4,9 +4,9 @@
 #include <string>
 #include <cryptopp/rsa.h>
 
-#include "pack.h"
-#include "networking.h"
-#include "common_constants.h"
+#include "util/pack.h"
+#include "util/networking.h"
+#include "netvend/common_constants.h"
 
 namespace networking {
 
