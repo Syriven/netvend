@@ -26,10 +26,9 @@ void prepareConnection(pqxx::connection **dbConn) {
     (*dbConn)->prepare(UPDATE_POCKET_OWNER, "UPDATE pockets SET owner = $2 WHERE pocket_id = $1");
     (*dbConn)->prepare(UPDATE_POCKET_DEPOSIT_ADDRESS, "UPDATE pockets SET deposit_address = $3 WHERE owner = $1 AND pocket_id = $2");
     
-    
-    (*dbConn)->prepare(INSERT_CHUNK, "INSERT INTO chunks (owner, name, pocket) VALUES ($1, $2, $3) RETURNING chunk_id");
-    (*dbConn)->prepare(FETCH_CHUNK_OWNER, "SELECT owner FROM chunks WHERE chunk_id = $1");
-    (*dbConn)->prepare(UPDATE_CHUNK_BY_ID, "UPDATE chunks SET data = $2 WHERE chunk_id = $1");
+    (*dbConn)->prepare(INSERT_PAGE, "INSERT INTO pages (owner, name, pocket) VALUES ($1, $2, $3) RETURNING page_id");
+    (*dbConn)->prepare(FETCH_PAGE_OWNER, "SELECT owner FROM pages WHERE page_id = $1");
+    (*dbConn)->prepare(UPDATE_PAGE_BY_ID, "UPDATE pages SET data = $2 WHERE page_id = $1");
     
     std::cout << "queries prepared." << std::endl;
 }
@@ -148,11 +147,11 @@ void updatePocketDepositAddress(pqxx::connection *dbConn, std::string ownerAddre
 
 
 
-unsigned long insertChunk(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID) {
-    pqxx::work tx(*dbConn, "InsertChunkWork");
+unsigned long insertPage(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID) {
+    pqxx::work tx(*dbConn, "InsertPageWork");
     pqxx::result result;
     
-    result = tx.prepared(INSERT_CHUNK)(ownerAddress)(name)(pocketID).exec();
+    result = tx.prepared(INSERT_PAGE)(ownerAddress)(name)(pocketID).exec();
     
     tx.commit();
     
@@ -161,10 +160,10 @@ unsigned long insertChunk(pqxx::connection *dbConn, std::string ownerAddress, st
     return chunkID;
 }
 
-std::string fetchChunkOwner(pqxx::connection *dbConn, unsigned long chunkID) {
-    pqxx::work tx(*dbConn, "FetchChunkOwnerWork");
+std::string fetchPageOwner(pqxx::connection *dbConn, unsigned long chunkID) {
+    pqxx::work tx(*dbConn, "FetchPageOwnerWork");
     
-    pqxx::result result = tx.prepared(FETCH_CHUNK_OWNER)(chunkID).exec();
+    pqxx::result result = tx.prepared(FETCH_PAGE_OWNER)(chunkID).exec();
     
     if (result.size() == 0) {
         throw NoRowFoundException();
@@ -175,13 +174,13 @@ std::string fetchChunkOwner(pqxx::connection *dbConn, unsigned long chunkID) {
     return owner;
 }
 
-void updateChunkByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
-    pqxx::work tx(*dbConn, "UpdateChunkByIDWork");
+void updatePageByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
+    pqxx::work tx(*dbConn, "UpdatePageByIDWork");
     pqxx::result result;
     
     pqxx::binarystring dataBlob(data, dataSize);
     
-    result = tx.prepared(UPDATE_CHUNK_BY_ID)(chunkID)(dataBlob).exec();
+    result = tx.prepared(UPDATE_PAGE_BY_ID)(chunkID)(dataBlob).exec();
     
     tx.commit();
     

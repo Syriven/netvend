@@ -5,7 +5,6 @@
 #include <boost/lexical_cast.hpp>
 #include <string>
 #include <iostream>
-//#include <stdexcept>
 
 #include "netvend/common_constants.h"
 #include "util/pack.h"
@@ -18,8 +17,8 @@ namespace commands {
     
     const char COMMANDTYPECHAR_CREATE_POCKET = 0;
     const char COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS = 1;
-    const char COMMANDTYPECHAR_CREATE_CHUNK = 2;
-    const char COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID = 3;
+    const char COMMANDTYPECHAR_CREATE_PAGE = 2;
+    const char COMMANDTYPECHAR_UPDATE_PAGE_BY_ID = 3;
 
     class Command {
         unsigned char typeChar_;
@@ -56,28 +55,28 @@ namespace commands {
         unsigned long pocketID();
     };
     
-    class CreateChunk : public Command {
+    class CreatePage : public Command {
         std::string name_;
         unsigned long pocketID_;
     public:
-        CreateChunk(std::string name, unsigned long pocketID);
+        CreatePage(std::string name, unsigned long pocketID);
         void writeToVch(std::vector<unsigned char>* vch);
-        static commands::CreateChunk* consumeFromBuf(unsigned char **ptrPtr);
+        static commands::CreatePage* consumeFromBuf(unsigned char **ptrPtr);
         std::string name();
         unsigned long pocketID();
     };
     
-    class UpdateChunkByID : public Command {
+    class UpdatePageByID : public Command {
         unsigned long chunkID_;
         unsigned char* data_;
         unsigned short dataSize_;
         bool mustFreeData_;
     public:
-        UpdateChunkByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize);
-        ~UpdateChunkByID();
+        UpdatePageByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize);
+        ~UpdatePageByID();
         void allocSpace();
         void writeToVch(std::vector<unsigned char>* vch);
-        static commands::UpdateChunkByID* consumeFromBuf(unsigned char **ptrPtr);
+        static commands::UpdatePageByID* consumeFromBuf(unsigned char **ptrPtr);
         unsigned long chunkID();
         unsigned char* data();
         unsigned short dataSize();
@@ -127,20 +126,20 @@ namespace results {
         std::string depositAddress();
     };
     
-    class CreateChunk : public Result {
+    class CreatePage : public Result {
         unsigned long chunkID_;
     public:
-        CreateChunk(unsigned long cost, unsigned long chunkID);
+        CreatePage(unsigned long cost, unsigned long chunkID);
         void writeToVch(std::vector<unsigned char>* vch);
-        static results::CreateChunk* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
+        static results::CreatePage* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
         unsigned long chunkID();
     };
     
-    class UpdateChunkByID : public Result {
+    class UpdatePageByID : public Result {
     public:
-        UpdateChunkByID(unsigned long cost);
+        UpdatePageByID(unsigned long cost);
         void writeToVch(std::vector<unsigned char>* vch);
-        static results::UpdateChunkByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
+        static results::UpdatePageByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
     };
 
 }//namespace commands::results

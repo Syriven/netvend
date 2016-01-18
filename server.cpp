@@ -75,10 +75,10 @@ void checkOwnedPocket(unsigned long pocketID, std::string agentAddress) {
     }
 }
 
-void checkOwnedChunk(unsigned long chunkID, std::string agentAddress) {
+void checkOwnedPage(unsigned long chunkID, std::string agentAddress) {
     std::string fetchedAgentAddress;
     try {
-        fetchedAgentAddress = database::fetchChunkOwner(dbConn, chunkID);
+        fetchedAgentAddress = database::fetchPageOwner(dbConn, chunkID);
     }
     catch (database::NoRowFoundException &e) {
         //Row doesn't exist; pocketID is invalid
@@ -116,34 +116,34 @@ boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequest
     return rpdaResult;
 }
 
-boost::shared_ptr<commands::results::CreateChunk> processCreateChunkCommand(std::string agentAddress, boost::shared_ptr<commands::CreateChunk> command) {
+boost::shared_ptr<commands::results::CreatePage> processCreatePageCommand(std::string agentAddress, boost::shared_ptr<commands::CreatePage> command) {
     unsigned long pocketID = command->pocketID();
     
     checkOwnedPocket(pocketID, agentAddress);
     
     std::string name = command->name();
     
-    unsigned long chunkID = database::insertChunk(dbConn, agentAddress, name, pocketID);
+    unsigned long chunkID = database::insertPage(dbConn, agentAddress, name, pocketID);
     
-    boost::shared_ptr<commands::results::CreateChunk> ccResult(
-      new commands::results::CreateChunk(0, chunkID)
+    boost::shared_ptr<commands::results::CreatePage> ccResult(
+      new commands::results::CreatePage(0, chunkID)
     );
     
     return ccResult;
 }
 
-boost::shared_ptr<commands::results::UpdateChunkByID> processUpdateChunkByIDCommand(std::string agentAddress, boost::shared_ptr<commands::UpdateChunkByID> command) {
+boost::shared_ptr<commands::results::UpdatePageByID> processUpdatePageByIDCommand(std::string agentAddress, boost::shared_ptr<commands::UpdatePageByID> command) {
     unsigned long chunkID = command->chunkID();
     
-    checkOwnedChunk(chunkID, agentAddress);
+    checkOwnedPage(chunkID, agentAddress);
     
     unsigned char* data = command->data();
     unsigned short dataSize = command->dataSize();
     
-    database::updateChunkByID(dbConn, chunkID, data, dataSize);
+    database::updatePageByID(dbConn, chunkID, data, dataSize);
     
-    boost::shared_ptr<commands::results::UpdateChunkByID> ucbiResult(
-      new commands::results::UpdateChunkByID(0)
+    boost::shared_ptr<commands::results::UpdatePageByID> ucbiResult(
+      new commands::results::UpdatePageByID(0)
     );
     
     return ucbiResult;
@@ -170,25 +170,25 @@ boost::shared_ptr<commands::results::Result> processCommand(std::string agentAdd
         
         return processRequestPocketDepositAddressCommand(agentAddress, rpdaCommand);
     }
-    else if (command->typeChar() == commands::COMMANDTYPECHAR_CREATE_CHUNK) {
-        boost::shared_ptr<commands::CreateChunk> ccCommand = 
-        boost::dynamic_pointer_cast<commands::CreateChunk>(command);
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_CREATE_PAGE) {
+        boost::shared_ptr<commands::CreatePage> ccCommand = 
+        boost::dynamic_pointer_cast<commands::CreatePage>(command);
         
         if (ccCommand.get() == NULL) {
-            throw networking::NetvendDecodeException("Error decoding what seems to be an CreateChunk command.");
+            throw networking::NetvendDecodeException("Error decoding what seems to be an CreatePage command.");
         }
         
-        return processCreateChunkCommand(agentAddress, ccCommand);
+        return processCreatePageCommand(agentAddress, ccCommand);
     }
-    else if (command->typeChar() == commands::COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID) {
-        boost::shared_ptr<commands::UpdateChunkByID> ucbiCommand = 
-        boost::dynamic_pointer_cast<commands::UpdateChunkByID>(command);
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
+        boost::shared_ptr<commands::UpdatePageByID> ucbiCommand = 
+        boost::dynamic_pointer_cast<commands::UpdatePageByID>(command);
         
         if (ucbiCommand.get() == NULL) {
             throw networking::NetvendDecodeException("Error decoding what seems to be an ucbi command.");
         }
         
-        return processUpdateChunkByIDCommand(agentAddress, ucbiCommand);
+        return processUpdatePageByIDCommand(agentAddress, ucbiCommand);
     }
     else {
         throw networking::NetvendDecodeException((std::string("Error decoding command with commandtypechar ") + boost::lexical_cast<std::string>(command->typeChar())).c_str());

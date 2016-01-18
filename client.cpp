@@ -197,26 +197,26 @@ public:
         return rpdaResult->depositAddress();
     }
     
-    unsigned long createChunk(std::string name, unsigned long pocketID) {
-        boost::shared_ptr<commands::Command> command(new commands::CreateChunk(name, pocketID));
+    unsigned long createPage(std::string name, unsigned long pocketID) {
+        boost::shared_ptr<commands::Command> command(new commands::CreatePage(name, pocketID));
         
         boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
         
-        boost::shared_ptr<commands::results::CreateChunk> ccResult =
-          boost::dynamic_pointer_cast<commands::results::CreateChunk>(result);
+        boost::shared_ptr<commands::results::CreatePage> ccResult =
+          boost::dynamic_pointer_cast<commands::results::CreatePage>(result);
         
         assert(ccResult.get() != NULL);
         
         return ccResult->chunkID();
     }
     
-    void updateChunkByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
-        boost::shared_ptr<commands::Command> command(new commands::UpdateChunkByID(chunkID, data, dataSize));
+    void updatePageByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
+        boost::shared_ptr<commands::Command> command(new commands::UpdatePageByID(chunkID, data, dataSize));
         
         boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
         
-        boost::shared_ptr<commands::results::UpdateChunkByID> ucbiResult =
-        boost::dynamic_pointer_cast<commands::results::UpdateChunkByID>(result);
+        boost::shared_ptr<commands::results::UpdatePageByID> ucbiResult =
+        boost::dynamic_pointer_cast<commands::results::UpdatePageByID>(result);
         
         assert(ucbiResult.get() != NULL);
     }
@@ -230,15 +230,15 @@ Agent* selectedAgent;
 const char helpstr[] = 
 "help - help\n\
 q - quit\n\
-n [name] - new agent\n\
-l - list agents\n\
-s [name] - select agent\n\
+newagent [name] - new agent\n\
+agents - list agents\n\
+agent [name] - select agent\n\
 \n\
 h - Perform netvend handshake\n\
-cp - Create new Pocket\n\
-rpda [pocketID] - Request new deposit address for pocket\n\
-cc [name] [pocketID] - Create a new data chunk with [name], thethered to pocket [pocketID]\n\
-ucbi [chunkID] [data] - Update chunk [chunkID] with [data]";
+newpocket - Create new Pocket\n\
+pocketdeposit [pocketID] - Request deposit address for pocket\n\
+newpage [name] [pocketID] - Create a new page with [name], thethered to pocket [pocketID]\n\
+write [pageID] [data] - write to page [pageID] with [data] (overwrites old data)";
 
 void createNewAgent(std::string name, boost::asio::io_service& io, bool output=true) {
     Agent agent(io);
@@ -280,7 +280,7 @@ int main() {
         else if (commandCode == "q") {
             return 0;
         }
-        else if (commandCode == "n") {
+        else if (commandCode == "newagent") {
             std::string name;
             std::cin >> name;
 
@@ -289,12 +289,12 @@ int main() {
             selectAgent(name);
             selectedAgent->setConnection(&nvConnection);
         }
-        else if (commandCode == "l") {
+        else if (commandCode == "agents") {
             for (std::map<std::string, Agent>::iterator it=agents.begin(); it != agents.end(); it++) {
                 std::cout << it->first << " (" << it->second.getAddress() << ")" << std::endl;
             }
         }
-        else if (commandCode == "n") {
+        else if (commandCode == "agent") {
             std::string name;
             std::cin >> name;
 
@@ -310,41 +310,41 @@ int main() {
                 std::cout << "Handshake complete; recognized by netvend as an existing agent." << std::endl;
             }
         }
-        else if (commandCode == "cp") {
+        else if (commandCode == "newpocket") {
             std::cout << "Pocket created with id " << selectedAgent->createPocket() << std::endl;
         }
-        else if (commandCode == "rpda") {
+        else if (commandCode == "pocketdeposit") {
             unsigned long pocketID;
             
             std::cin >> pocketID;
             
             std::cout << "Pocket " << pocketID << " now has a deposit address " << selectedAgent->requestPocketDepositAddress(pocketID) << std::endl;
         }
-        else if (commandCode == "cc") {
+        else if (commandCode == "newpage") {
             std::string name;
             unsigned long pocketID;
             
             std::cin >> name >> pocketID;
             
-            std::cout << "Chunk " << selectedAgent->createChunk(name, pocketID) << " has been created." << std::endl;
+            std::cout << "Page " << selectedAgent->createPage(name, pocketID) << " has been created." << std::endl;
         }
-        else if (commandCode == "ucbi") {
+        else if (commandCode == "write") {
             unsigned long chunkID;
             std::string s;
             
             std::cin >> chunkID >> s;
             
-            selectedAgent->updateChunkByID(chunkID, (unsigned char*)s.data(), s.size());
+            selectedAgent->updatePageByID(chunkID, (unsigned char*)s.data(), s.size());
             
-            std::cout << "Chunk " << chunkID << " updated." << std::endl;
+            std::cout << "Page " << chunkID << " updated." << std::endl;
         }
         else if (commandCode == "t") {
             createNewAgent("default", io);
             selectAgent("default");
             selectedAgent->setConnection(&nvConnection);
             unsigned long pocket = selectedAgent->performNetvendHandshake();
-            unsigned long chunk = selectedAgent->createChunk("testchunk", pocket);
-            selectedAgent->updateChunkByID(chunk, (unsigned char*)"hi", 2);
+            unsigned long chunk = selectedAgent->createPage("testchunk", pocket);
+            selectedAgent->updatePageByID(chunk, (unsigned char*)"hi", 2);
         }
         else {
             std::cout << "Unrecognized command." << std::endl;

@@ -26,11 +26,11 @@ namespace commands {
         if (typeChar == COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS) {
             return commands::RequestPocketDepositAddress::consumeFromBuf(ptrPtr);
         }
-        if (typeChar == COMMANDTYPECHAR_CREATE_CHUNK) {
-            return commands::CreateChunk::consumeFromBuf(ptrPtr);
+        if (typeChar == COMMANDTYPECHAR_CREATE_PAGE) {
+            return commands::CreatePage::consumeFromBuf(ptrPtr);
         }
-        if (typeChar == COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID) {
-            return commands::UpdateChunkByID::consumeFromBuf(ptrPtr);
+        if (typeChar == COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
+            return commands::UpdatePageByID::consumeFromBuf(ptrPtr);
         }
         else {
             throw std::runtime_error("bad packet; unrecognized command typechar '" + boost::lexical_cast<std::string>(typeChar) + "'");
@@ -135,11 +135,11 @@ namespace commands {
     
     
     
-    CreateChunk::CreateChunk(std::string name, unsigned long pocketID)
-    : Command(COMMANDTYPECHAR_CREATE_CHUNK), name_(name), pocketID_(pocketID)
+    CreatePage::CreatePage(std::string name, unsigned long pocketID)
+    : Command(COMMANDTYPECHAR_CREATE_PAGE), name_(name), pocketID_(pocketID)
     {}
     
-    void CreateChunk::writeToVch(std::vector<unsigned char>* vch) {
+    void CreatePage::writeToVch(std::vector<unsigned char>* vch) {
         Command::writeToVch(vch);
         
         unsigned char nameSize = name_.size();
@@ -160,7 +160,7 @@ namespace commands {
         assert(place == vch->size());
     }
     
-    commands::CreateChunk* CreateChunk::consumeFromBuf(unsigned char **ptrPtr) {
+    commands::CreatePage* CreatePage::consumeFromBuf(unsigned char **ptrPtr) {
         unsigned char nameSize;
         *ptrPtr += unpack(*ptrPtr, "C", &nameSize);
         
@@ -172,32 +172,32 @@ namespace commands {
         unsigned long pocketID;
         *ptrPtr += unpack(*ptrPtr, "L", &pocketID);
         
-        return new commands::CreateChunk(name, pocketID);
+        return new commands::CreatePage(name, pocketID);
     }
     
-    std::string CreateChunk::name() {return name_;}
-    unsigned long CreateChunk::pocketID() {return pocketID_;}
+    std::string CreatePage::name() {return name_;}
+    unsigned long CreatePage::pocketID() {return pocketID_;}
     
     
     
-    UpdateChunkByID::UpdateChunkByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize)
-    : Command(COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID), chunkID_(chunkID), data_(data), dataSize_(dataSize)
+    UpdatePageByID::UpdatePageByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize)
+    : Command(COMMANDTYPECHAR_UPDATE_PAGE_BY_ID), chunkID_(chunkID), data_(data), dataSize_(dataSize)
     {
         mustFreeData_ = false;
     }
     
-    UpdateChunkByID::~UpdateChunkByID() {
+    UpdatePageByID::~UpdatePageByID() {
         if (mustFreeData_) {
             delete [] data_;
         }
     }
     
-    void UpdateChunkByID::allocSpace() {
+    void UpdatePageByID::allocSpace() {
         data_ = new unsigned char[(int)dataSize_];
         mustFreeData_ = true;
     }
     
-    void UpdateChunkByID::writeToVch(std::vector<unsigned char>* vch) {
+    void UpdatePageByID::writeToVch(std::vector<unsigned char>* vch) {
         Command::writeToVch(vch);
         
         const size_t DATA_SIZE = PACK_L_SIZE + PACK_H_SIZE + dataSize_;
@@ -214,12 +214,12 @@ namespace commands {
         assert(place == vch->size());
     }
     
-    commands::UpdateChunkByID* UpdateChunkByID::consumeFromBuf(unsigned char **ptrPtr) {
+    commands::UpdatePageByID* UpdatePageByID::consumeFromBuf(unsigned char **ptrPtr) {
         unsigned long chunkID;
         unsigned short dataSize;
         *ptrPtr += unpack(*ptrPtr, "LH", &chunkID, &dataSize);
         
-        commands::UpdateChunkByID* newWriteCmd = new UpdateChunkByID(chunkID, NULL, dataSize);
+        commands::UpdatePageByID* newWriteCmd = new UpdatePageByID(chunkID, NULL, dataSize);
         newWriteCmd->allocSpace();
         std::copy_n(*ptrPtr, dataSize, newWriteCmd->data());
         *ptrPtr += dataSize;
@@ -227,9 +227,9 @@ namespace commands {
         return newWriteCmd;
     }
     
-    unsigned long UpdateChunkByID::chunkID() {return chunkID_;}
-    unsigned char* UpdateChunkByID::data() {return data_;}
-    unsigned short UpdateChunkByID::dataSize() {return dataSize_;}
+    unsigned long UpdatePageByID::chunkID() {return chunkID_;}
+    unsigned char* UpdatePageByID::data() {return data_;}
+    unsigned short UpdatePageByID::dataSize() {return dataSize_;}
 
 namespace results {
 
@@ -262,11 +262,11 @@ namespace results {
         else if (commandType == commands::COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS) {
             return results::RequestPocketDepositAddress::consumeFromBuf(cost, ptrPtr);
         }
-        else if (commandType == commands::COMMANDTYPECHAR_CREATE_CHUNK) {
-            return results::CreateChunk::consumeFromBuf(cost, ptrPtr);
+        else if (commandType == commands::COMMANDTYPECHAR_CREATE_PAGE) {
+            return results::CreatePage::consumeFromBuf(cost, ptrPtr);
         }
-        else if (commandType == commands::COMMANDTYPECHAR_UPDATE_CHUNK_BY_ID) {
-            return results::UpdateChunkByID::consumeFromBuf(cost, ptrPtr);
+        else if (commandType == commands::COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
+            return results::UpdatePageByID::consumeFromBuf(cost, ptrPtr);
         }
         
         else {
@@ -402,11 +402,11 @@ namespace results {
     
     
     
-    CreateChunk::CreateChunk(unsigned long cost, unsigned long chunkID)
+    CreatePage::CreatePage(unsigned long cost, unsigned long chunkID)
     : Result(errors::ERRORTYPECHAR_NONE, cost), chunkID_(chunkID)
     {}
     
-    void CreateChunk::writeToVch(std::vector<unsigned char>* vch) {
+    void CreatePage::writeToVch(std::vector<unsigned char>* vch) {
         Result::writeToVch(vch);
         
         static const size_t DATA_SIZE = PACK_L_SIZE;
@@ -418,27 +418,27 @@ namespace results {
         assert(place == vch->size());
     }
     
-    results::CreateChunk* CreateChunk::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::CreatePage* CreatePage::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
         unsigned long chunkID;
         *ptrPtr += unpack(*ptrPtr, "L", &chunkID);
         
-        return new results::CreateChunk(cost, chunkID);
+        return new results::CreatePage(cost, chunkID);
     }
     
-    unsigned long CreateChunk::chunkID() {return chunkID_;}
+    unsigned long CreatePage::chunkID() {return chunkID_;}
     
     
     
-    UpdateChunkByID::UpdateChunkByID(unsigned long cost)
+    UpdatePageByID::UpdatePageByID(unsigned long cost)
     : Result(errors::ERRORTYPECHAR_NONE, cost)
     {}
     
-    void UpdateChunkByID::writeToVch(std::vector<unsigned char>* vch) {
+    void UpdatePageByID::writeToVch(std::vector<unsigned char>* vch) {
         Result::writeToVch(vch);
     }
     
-    results::UpdateChunkByID* UpdateChunkByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
-        return new results::UpdateChunkByID(cost);
+    results::UpdatePageByID* UpdatePageByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+        return new results::UpdatePageByID(cost);
     }
 
 }//namesace commands::results
