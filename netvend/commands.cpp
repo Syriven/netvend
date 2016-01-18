@@ -180,8 +180,8 @@ namespace commands {
     
     
     
-    UpdatePageByID::UpdatePageByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize)
-    : Command(COMMANDTYPECHAR_UPDATE_PAGE_BY_ID), chunkID_(chunkID), data_(data), dataSize_(dataSize)
+    UpdatePageByID::UpdatePageByID(unsigned long pageID, unsigned char* data, unsigned short dataSize)
+    : Command(COMMANDTYPECHAR_UPDATE_PAGE_BY_ID), pageID_(pageID), data_(data), dataSize_(dataSize)
     {
         mustFreeData_ = false;
     }
@@ -206,7 +206,7 @@ namespace commands {
         
         vch->resize(place + DATA_SIZE);
         
-        place += pack(vch->data()+place, "LH", chunkID_, dataSize_);
+        place += pack(vch->data()+place, "LH", pageID_, dataSize_);
         
         std::copy_n(data_, dataSize_, vch->data()+place);
         place += dataSize_;
@@ -215,11 +215,11 @@ namespace commands {
     }
     
     commands::UpdatePageByID* UpdatePageByID::consumeFromBuf(unsigned char **ptrPtr) {
-        unsigned long chunkID;
+        unsigned long pageID;
         unsigned short dataSize;
-        *ptrPtr += unpack(*ptrPtr, "LH", &chunkID, &dataSize);
+        *ptrPtr += unpack(*ptrPtr, "LH", &pageID, &dataSize);
         
-        commands::UpdatePageByID* newWriteCmd = new UpdatePageByID(chunkID, NULL, dataSize);
+        commands::UpdatePageByID* newWriteCmd = new UpdatePageByID(pageID, NULL, dataSize);
         newWriteCmd->allocSpace();
         std::copy_n(*ptrPtr, dataSize, newWriteCmd->data());
         *ptrPtr += dataSize;
@@ -227,7 +227,7 @@ namespace commands {
         return newWriteCmd;
     }
     
-    unsigned long UpdatePageByID::chunkID() {return chunkID_;}
+    unsigned long UpdatePageByID::pageID() {return pageID_;}
     unsigned char* UpdatePageByID::data() {return data_;}
     unsigned short UpdatePageByID::dataSize() {return dataSize_;}
 
@@ -402,8 +402,8 @@ namespace results {
     
     
     
-    CreatePage::CreatePage(unsigned long cost, unsigned long chunkID)
-    : Result(errors::ERRORTYPECHAR_NONE, cost), chunkID_(chunkID)
+    CreatePage::CreatePage(unsigned long cost, unsigned long pageID)
+    : Result(errors::ERRORTYPECHAR_NONE, cost), pageID_(pageID)
     {}
     
     void CreatePage::writeToVch(std::vector<unsigned char>* vch) {
@@ -414,18 +414,18 @@ namespace results {
         unsigned long place = vch->size();
         
         vch->resize(place + DATA_SIZE);
-        place += pack(vch->data() + place, "L", chunkID_);
+        place += pack(vch->data() + place, "L", pageID_);
         assert(place == vch->size());
     }
     
     results::CreatePage* CreatePage::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
-        unsigned long chunkID;
-        *ptrPtr += unpack(*ptrPtr, "L", &chunkID);
+        unsigned long pageID;
+        *ptrPtr += unpack(*ptrPtr, "L", &pageID);
         
-        return new results::CreatePage(cost, chunkID);
+        return new results::CreatePage(cost, pageID);
     }
     
-    unsigned long CreatePage::chunkID() {return chunkID_;}
+    unsigned long CreatePage::pageID() {return pageID_;}
     
     
     

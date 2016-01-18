@@ -207,11 +207,11 @@ public:
         
         assert(ccResult.get() != NULL);
         
-        return ccResult->chunkID();
+        return ccResult->pageID();
     }
     
-    void updatePageByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
-        boost::shared_ptr<commands::Command> command(new commands::UpdatePageByID(chunkID, data, dataSize));
+    void updatePageByID(unsigned long pageID, unsigned char* data, unsigned short dataSize) {
+        boost::shared_ptr<commands::Command> command(new commands::UpdatePageByID(pageID, data, dataSize));
         
         boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
         
@@ -329,22 +329,22 @@ int main() {
             std::cout << "Page " << selectedAgent->createPage(name, pocketID) << " has been created." << std::endl;
         }
         else if (commandCode == "write") {
-            unsigned long chunkID;
+            unsigned long pageID;
             std::string s;
             
-            std::cin >> chunkID >> s;
+            std::cin >> pageID >> s;
             
-            selectedAgent->updatePageByID(chunkID, (unsigned char*)s.data(), s.size());
+            selectedAgent->updatePageByID(pageID, (unsigned char*)s.data(), s.size());
             
-            std::cout << "Page " << chunkID << " updated." << std::endl;
+            std::cout << "Page " << pageID << " updated." << std::endl;
         }
         else if (commandCode == "t") {
             createNewAgent("default", io);
             selectAgent("default");
             selectedAgent->setConnection(&nvConnection);
             unsigned long pocket = selectedAgent->performNetvendHandshake();
-            unsigned long chunk = selectedAgent->createPage("testchunk", pocket);
-            selectedAgent->updatePageByID(chunk, (unsigned char*)"hi", 2);
+            unsigned long page = selectedAgent->createPage("testpage", pocket);
+            selectedAgent->updatePageByID(page, (unsigned char*)"hi", 2);
         }
         else {
             std::cout << "Unrecognized command." << std::endl;

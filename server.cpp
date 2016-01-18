@@ -75,19 +75,19 @@ void checkOwnedPocket(unsigned long pocketID, std::string agentAddress) {
     }
 }
 
-void checkOwnedPage(unsigned long chunkID, std::string agentAddress) {
+void checkOwnedPage(unsigned long pageID, std::string agentAddress) {
     std::string fetchedAgentAddress;
     try {
-        fetchedAgentAddress = database::fetchPageOwner(dbConn, chunkID);
+        fetchedAgentAddress = database::fetchPageOwner(dbConn, pageID);
     }
     catch (database::NoRowFoundException &e) {
         //Row doesn't exist; pocketID is invalid
-        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(chunkID), 0, true);
+        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pageID), 0, true);
         throw NetvendCommandException(error);
     }
     if (fetchedAgentAddress != agentAddress) {
         //Pocket exists but is owned by a different agent
-        commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(chunkID), 0, true);
+        commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(pageID), 0, true);
         throw NetvendCommandException(error);
     }
 }
@@ -123,24 +123,24 @@ boost::shared_ptr<commands::results::CreatePage> processCreatePageCommand(std::s
     
     std::string name = command->name();
     
-    unsigned long chunkID = database::insertPage(dbConn, agentAddress, name, pocketID);
+    unsigned long pageID = database::insertPage(dbConn, agentAddress, name, pocketID);
     
     boost::shared_ptr<commands::results::CreatePage> ccResult(
-      new commands::results::CreatePage(0, chunkID)
+      new commands::results::CreatePage(0, pageID)
     );
     
     return ccResult;
 }
 
 boost::shared_ptr<commands::results::UpdatePageByID> processUpdatePageByIDCommand(std::string agentAddress, boost::shared_ptr<commands::UpdatePageByID> command) {
-    unsigned long chunkID = command->chunkID();
+    unsigned long pageID = command->pageID();
     
-    checkOwnedPage(chunkID, agentAddress);
+    checkOwnedPage(pageID, agentAddress);
     
     unsigned char* data = command->data();
     unsigned short dataSize = command->dataSize();
     
-    database::updatePageByID(dbConn, chunkID, data, dataSize);
+    database::updatePageByID(dbConn, pageID, data, dataSize);
     
     boost::shared_ptr<commands::results::UpdatePageByID> ucbiResult(
       new commands::results::UpdatePageByID(0)

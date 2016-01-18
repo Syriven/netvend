@@ -67,17 +67,17 @@ namespace commands {
     };
     
     class UpdatePageByID : public Command {
-        unsigned long chunkID_;
+        unsigned long pageID_;
         unsigned char* data_;
         unsigned short dataSize_;
         bool mustFreeData_;
     public:
-        UpdatePageByID(unsigned long chunkID, unsigned char* data, unsigned short dataSize);
+        UpdatePageByID(unsigned long pageID, unsigned char* data, unsigned short dataSize);
         ~UpdatePageByID();
         void allocSpace();
         void writeToVch(std::vector<unsigned char>* vch);
         static commands::UpdatePageByID* consumeFromBuf(unsigned char **ptrPtr);
-        unsigned long chunkID();
+        unsigned long pageID();
         unsigned char* data();
         unsigned short dataSize();
     };
@@ -127,12 +127,12 @@ namespace results {
     };
     
     class CreatePage : public Result {
-        unsigned long chunkID_;
+        unsigned long pageID_;
     public:
-        CreatePage(unsigned long cost, unsigned long chunkID);
+        CreatePage(unsigned long cost, unsigned long pageID);
         void writeToVch(std::vector<unsigned char>* vch);
         static results::CreatePage* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
-        unsigned long chunkID();
+        unsigned long pageID();
     };
     
     class UpdatePageByID : public Result {
