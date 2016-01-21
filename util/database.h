@@ -24,6 +24,7 @@ const std::string UPDATE_POCKET_DEPOSIT_ADDRESS = "UpdatePocketDepositAddress";
 const std::string INSERT_PAGE = "InsertPage";
 const std::string FETCH_PAGE_OWNER = "FetchPageOwner";
 const std::string UPDATE_PAGE_BY_ID = "UpdatePageByID";
+const std::string READ_PAGE_BY_ID = "ReadPageByID";
 
 class NoRowFoundException : public std::runtime_error {
 public:
@@ -52,6 +53,7 @@ void updatePocketDepositAddress(pqxx::connection* dbConn, std::string ownerAddre
 unsigned long insertPage(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID);
 std::string fetchPageOwner(pqxx::connection *dbConn, unsigned long chunkID);
 void updatePageByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize);
+std::vector<unsigned char> readPageByID(pqxx::connection *dbConn, unsigned long chunkID);
 
 }//namespace database
 

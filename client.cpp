@@ -220,6 +220,21 @@ public:
         
         assert(ucbiResult.get() != NULL);
     }
+    
+    std::vector<unsigned char> readPageByID(unsigned long pageID) {
+        boost::shared_ptr<commands::Command> command(new commands::ReadPageByID(pageID));
+        
+        boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
+        
+        boost::shared_ptr<commands::results::ReadPageByID> readResult =
+        boost::dynamic_pointer_cast<commands::results::ReadPageByID>(result);
+        
+        assert(readResult.get() != NULL);
+        
+        std::cout << "size: " << readResult->pageData()->size() << std::endl;
+        
+        return *(readResult->pageData());
+    }
 };
 
 std::map<std::string, Agent> agents;
@@ -337,6 +352,19 @@ int main() {
             selectedAgent->updatePageByID(pageID, (unsigned char*)s.data(), s.size());
             
             std::cout << "Page " << pageID << " updated." << std::endl;
+        }
+        else if (commandCode == "read") {
+            unsigned long pageID;
+            
+            std::cin >> pageID;
+            
+            std::vector<unsigned char> pageData = selectedAgent->readPageByID(pageID);
+            
+            std::string s;
+            s.resize(pageData.size());
+            std::copy(pageData.begin(), pageData.end(), s.begin());
+            
+            std::cout << "data: " << s << std::endl;
         }
         else if (commandCode == "t") {
             createNewAgent("default", io);

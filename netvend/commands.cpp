@@ -32,6 +32,9 @@ namespace commands {
         if (typeChar == COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
             return commands::UpdatePageByID::consumeFromBuf(ptrPtr);
         }
+        if (typeChar == COMMANDTYPECHAR_READ_PAGE_BY_ID) {
+            return commands::ReadPageByID::consumeFromBuf(ptrPtr);
+        }
         else {
             throw std::runtime_error("bad packet; unrecognized command typechar '" + boost::lexical_cast<std::string>(typeChar) + "'");
             return NULL;
@@ -230,6 +233,37 @@ namespace commands {
     unsigned long UpdatePageByID::pageID() {return pageID_;}
     unsigned char* UpdatePageByID::data() {return data_;}
     unsigned short UpdatePageByID::dataSize() {return dataSize_;}
+    
+    
+    
+    ReadPageByID::ReadPageByID(unsigned long pageID)
+    : Command(COMMANDTYPECHAR_READ_PAGE_BY_ID), pageID_(pageID)
+    {}
+    
+    void ReadPageByID::writeToVch(std::vector<unsigned char>* vch) {
+        Command::writeToVch(vch);
+        
+        const size_t DATA_SIZE = PACK_L_SIZE;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        
+        place += pack(vch->data()+place, "L", pageID_);
+        
+        assert(place == vch->size());
+    }
+    
+    commands::ReadPageByID* ReadPageByID::consumeFromBuf(unsigned char **ptrPtr) {
+        unsigned long pageID;
+        *ptrPtr += unpack(*ptrPtr, "L", &pageID);
+        
+        commands::ReadPageByID* newReadCmd = new ReadPageByID(pageID);
+        
+        return newReadCmd;
+    }
+    
+    unsigned long ReadPageByID::pageID() {return pageID_;}
 
 namespace results {
 
@@ -267,6 +301,9 @@ namespace results {
         }
         else if (commandType == commands::COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
             return results::UpdatePageByID::consumeFromBuf(cost, ptrPtr);
+        }
+        else if (commandType == commands::COMMANDTYPECHAR_READ_PAGE_BY_ID) {
+            return results::ReadPageByID::consumeFromBuf(cost, ptrPtr);
         }
         
         else {
@@ -439,6 +476,47 @@ namespace results {
     
     results::UpdatePageByID* UpdatePageByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
         return new results::UpdatePageByID(cost);
+    }
+    
+    
+    
+    ReadPageByID::ReadPageByID(unsigned long cost, std::vector<unsigned char> pageData)
+    : Result(errors::ERRORTYPECHAR_NONE, cost), pageData_(pageData)
+    {}
+    
+    void ReadPageByID::writeToVch(std::vector<unsigned char>* vch) {
+        Result::writeToVch(vch);
+        
+        unsigned short pageDataSize = pageData_.size();
+        
+        const size_t DATA_SIZE = PACK_H_SIZE + pageDataSize;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        
+        place += pack(vch->data()+place, "H", pageDataSize);
+        
+        std::copy(pageData_.begin(), pageData_.end(), vch->data()+place);
+        place += pageDataSize;
+        
+        assert(place == vch->size());
+    }
+    
+    results::ReadPageByID* ReadPageByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+        unsigned short pageDataSize;
+        *ptrPtr += unpack(*ptrPtr, "H", &pageDataSize);
+        
+        std::vector<unsigned char> pageData;
+        pageData.resize(pageDataSize);
+        std::copy_n(*ptrPtr, pageDataSize, pageData.begin());
+        *ptrPtr += pageDataSize;
+        
+        return new results::ReadPageByID(cost, pageData);
+    }
+    
+    std::vector<unsigned char>* ReadPageByID::pageData() {
+        return &pageData_;
     }
 
 }//namesace commands::results

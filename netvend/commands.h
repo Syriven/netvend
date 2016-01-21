@@ -19,6 +19,7 @@ namespace commands {
     const char COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS = 1;
     const char COMMANDTYPECHAR_CREATE_PAGE = 2;
     const char COMMANDTYPECHAR_UPDATE_PAGE_BY_ID = 3;
+    const char COMMANDTYPECHAR_READ_PAGE_BY_ID = 4;
 
     class Command {
         unsigned char typeChar_;
@@ -81,6 +82,15 @@ namespace commands {
         unsigned char* data();
         unsigned short dataSize();
     };
+    
+    class ReadPageByID : public Command {
+	unsigned long pageID_;
+    public:
+	ReadPageByID(unsigned long pageID);
+	void writeToVch(std::vector<unsigned char>* vch);
+	static commands::ReadPageByID* consumeFromBuf(unsigned char **ptrPtr);
+	unsigned long pageID();
+    };
 
 namespace results {
 
@@ -140,6 +150,15 @@ namespace results {
         UpdatePageByID(unsigned long cost);
         void writeToVch(std::vector<unsigned char>* vch);
         static results::UpdatePageByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
+    };
+    
+    class ReadPageByID : public Result {
+        std::vector<unsigned char> pageData_;
+    public:
+        ReadPageByID(unsigned long cost, std::vector<unsigned char> pageData);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static results::ReadPageByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
+        std::vector<unsigned char>* pageData();
     };
 
 }//namespace commands::results

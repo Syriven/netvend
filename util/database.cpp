@@ -29,6 +29,7 @@ void prepareConnection(pqxx::connection **dbConn) {
     (*dbConn)->prepare(INSERT_PAGE, "INSERT INTO pages (owner, name, pocket) VALUES ($1, $2, $3) RETURNING page_id");
     (*dbConn)->prepare(FETCH_PAGE_OWNER, "SELECT owner FROM pages WHERE page_id = $1");
     (*dbConn)->prepare(UPDATE_PAGE_BY_ID, "UPDATE pages SET data = $2 WHERE page_id = $1");
+    (*dbConn)->prepare(READ_PAGE_BY_ID, "SELECT data FROM pages WHERE page_id = $1");
     
     std::cout << "queries prepared." << std::endl;
 }
@@ -187,6 +188,22 @@ void updatePageByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned ch
     if (result.affected_rows() == 0) {
         throw NoRowFoundException();
     }
+}
+
+std::vector<unsigned char> readPageByID(pqxx::connection *dbConn, unsigned long chunkID) {
+    pqxx::work tx(*dbConn, "ReadPageByIDWork");
+    pqxx::result result = tx.prepared(READ_PAGE_BY_ID)(chunkID).exec();
+    tx.commit();
+    
+    if (result.size() == 0) {
+        throw NoRowFoundException();
+    }
+    pqxx::binarystring pageDataBlob(result[0][0]);
+    
+    std::vector<unsigned char> pageDataVch;
+    pageDataVch.resize(pageDataBlob.size());
+    std::copy(pageDataBlob.begin(), pageDataBlob.end(), pageDataVch.begin());
+    return pageDataVch;
 }
 
 }//namespace database

@@ -140,13 +140,38 @@ boost::shared_ptr<commands::results::UpdatePageByID> processUpdatePageByIDComman
     unsigned char* data = command->data();
     unsigned short dataSize = command->dataSize();
     
-    database::updatePageByID(dbConn, pageID, data, dataSize);
+    try {
+        database::updatePageByID(dbConn, pageID, data, dataSize);
+    }
+    catch (database::NoRowFoundException &e) {
+        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pageID), 0, true);
+        throw NetvendCommandException(error);
+    }
     
     boost::shared_ptr<commands::results::UpdatePageByID> ucbiResult(
       new commands::results::UpdatePageByID(0)
     );
     
     return ucbiResult;
+}
+
+boost::shared_ptr<commands::results::ReadPageByID> processReadPageByIDCommand(std::string agentAddress, boost::shared_ptr<commands::ReadPageByID> command) {
+    unsigned long pageID = command->pageID();
+    
+    std::vector<unsigned char> pageData;
+    try {
+        pageData = database::readPageByID(dbConn, pageID);
+    }
+    catch (database::NoRowFoundException &e) {
+        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pageID), 0, true);
+        throw NetvendCommandException(error);
+    }
+    
+    boost::shared_ptr<commands::results::ReadPageByID> readResult(
+      new commands::results::ReadPageByID(0, pageData)
+    );
+    
+    return readResult;
 }
 
 boost::shared_ptr<commands::results::Result> processCommand(std::string agentAddress, boost::shared_ptr<commands::Command> command) {
@@ -181,14 +206,24 @@ boost::shared_ptr<commands::results::Result> processCommand(std::string agentAdd
         return processCreatePageCommand(agentAddress, ccCommand);
     }
     else if (command->typeChar() == commands::COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
-        boost::shared_ptr<commands::UpdatePageByID> ucbiCommand = 
+        boost::shared_ptr<commands::UpdatePageByID> writeCommand = 
         boost::dynamic_pointer_cast<commands::UpdatePageByID>(command);
         
-        if (ucbiCommand.get() == NULL) {
+        if (writeCommand.get() == NULL) {
             throw networking::NetvendDecodeException("Error decoding what seems to be an ucbi command.");
         }
         
-        return processUpdatePageByIDCommand(agentAddress, ucbiCommand);
+        return processUpdatePageByIDCommand(agentAddress, writeCommand);
+    }
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_READ_PAGE_BY_ID) {
+        boost::shared_ptr<commands::ReadPageByID> readCommand =
+        boost::dynamic_pointer_cast<commands::ReadPageByID>(command);
+        
+        if (readCommand.get() == NULL) {
+            throw networking::NetvendDecodeException("Error decoding what seems to be a readPage command.");
+        }
+        
+        return processReadPageByIDCommand(agentAddress, readCommand);
     }
     else {
         throw networking::NetvendDecodeException((std::string("Error decoding command with commandtypechar ") + boost::lexical_cast<std::string>(command->typeChar())).c_str());
