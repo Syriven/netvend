@@ -2,7 +2,6 @@ CXX = g++
 CXXFLAGS = -g -Wall -std=c++0x
 
 INC=-I/usr/local/include -I/home/syriven/develop/c++/common -I./
-#LIB=-L/usr/lib/x86_64-linux-gnu/ -L/usr/lib/postgresql/9.4
 LIB=-lpqxx -lpq -lboost_system -lpthread -lcryptopp
 
 

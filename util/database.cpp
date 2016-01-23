@@ -26,10 +26,10 @@ void prepareConnection(pqxx::connection **dbConn) {
     (*dbConn)->prepare(UPDATE_POCKET_OWNER, "UPDATE pockets SET owner = $2 WHERE pocket_id = $1");
     (*dbConn)->prepare(UPDATE_POCKET_DEPOSIT_ADDRESS, "UPDATE pockets SET deposit_address = $3 WHERE owner = $1 AND pocket_id = $2");
     
-    (*dbConn)->prepare(INSERT_PAGE, "INSERT INTO pages (owner, name, pocket) VALUES ($1, $2, $3) RETURNING page_id");
-    (*dbConn)->prepare(FETCH_PAGE_OWNER, "SELECT owner FROM pages WHERE page_id = $1");
-    (*dbConn)->prepare(UPDATE_PAGE_BY_ID, "UPDATE pages SET data = $2 WHERE page_id = $1");
-    (*dbConn)->prepare(READ_PAGE_BY_ID, "SELECT data FROM pages WHERE page_id = $1");
+    (*dbConn)->prepare(INSERT_FILE, "INSERT INTO files (owner, name, pocket) VALUES ($1, $2, $3) RETURNING file_id");
+    (*dbConn)->prepare(FETCH_FILE_OWNER, "SELECT owner FROM files WHERE file_id = $1");
+    (*dbConn)->prepare(UPDATE_FILE_BY_ID, "UPDATE files SET data = $2 WHERE file_id = $1");
+    (*dbConn)->prepare(READ_FILE_BY_ID, "SELECT data FROM files WHERE file_id = $1");
     
     std::cout << "queries prepared." << std::endl;
 }
@@ -148,11 +148,11 @@ void updatePocketDepositAddress(pqxx::connection *dbConn, std::string ownerAddre
 
 
 
-unsigned long insertPage(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID) {
-    pqxx::work tx(*dbConn, "InsertPageWork");
+unsigned long insertFile(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID) {
+    pqxx::work tx(*dbConn, "InsertFileWork");
     pqxx::result result;
     
-    result = tx.prepared(INSERT_PAGE)(ownerAddress)(name)(pocketID).exec();
+    result = tx.prepared(INSERT_FILE)(ownerAddress)(name)(pocketID).exec();
     
     tx.commit();
     
@@ -161,10 +161,10 @@ unsigned long insertPage(pqxx::connection *dbConn, std::string ownerAddress, std
     return chunkID;
 }
 
-std::string fetchPageOwner(pqxx::connection *dbConn, unsigned long chunkID) {
-    pqxx::work tx(*dbConn, "FetchPageOwnerWork");
+std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long chunkID) {
+    pqxx::work tx(*dbConn, "FetchFileOwnerWork");
     
-    pqxx::result result = tx.prepared(FETCH_PAGE_OWNER)(chunkID).exec();
+    pqxx::result result = tx.prepared(FETCH_FILE_OWNER)(chunkID).exec();
     
     if (result.size() == 0) {
         throw NoRowFoundException();
@@ -175,13 +175,13 @@ std::string fetchPageOwner(pqxx::connection *dbConn, unsigned long chunkID) {
     return owner;
 }
 
-void updatePageByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
-    pqxx::work tx(*dbConn, "UpdatePageByIDWork");
+void updateFileByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
+    pqxx::work tx(*dbConn, "UpdateFileByIDWork");
     pqxx::result result;
     
     pqxx::binarystring dataBlob(data, dataSize);
     
-    result = tx.prepared(UPDATE_PAGE_BY_ID)(chunkID)(dataBlob).exec();
+    result = tx.prepared(UPDATE_FILE_BY_ID)(chunkID)(dataBlob).exec();
     
     tx.commit();
     
@@ -190,20 +190,20 @@ void updatePageByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned ch
     }
 }
 
-std::vector<unsigned char> readPageByID(pqxx::connection *dbConn, unsigned long chunkID) {
-    pqxx::work tx(*dbConn, "ReadPageByIDWork");
-    pqxx::result result = tx.prepared(READ_PAGE_BY_ID)(chunkID).exec();
+std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long chunkID) {
+    pqxx::work tx(*dbConn, "ReadFileByIDWork");
+    pqxx::result result = tx.prepared(READ_FILE_BY_ID)(chunkID).exec();
     tx.commit();
     
     if (result.size() == 0) {
         throw NoRowFoundException();
     }
-    pqxx::binarystring pageDataBlob(result[0][0]);
+    pqxx::binarystring fileDataBlob(result[0][0]);
     
-    std::vector<unsigned char> pageDataVch;
-    pageDataVch.resize(pageDataBlob.size());
-    std::copy(pageDataBlob.begin(), pageDataBlob.end(), pageDataVch.begin());
-    return pageDataVch;
+    std::vector<unsigned char> fileDataVch;
+    fileDataVch.resize(fileDataBlob.size());
+    std::copy(fileDataBlob.begin(), fileDataBlob.end(), fileDataVch.begin());
+    return fileDataVch;
 }
 
 }//namespace database

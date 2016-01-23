@@ -17,9 +17,9 @@ namespace commands {
     
     const char COMMANDTYPECHAR_CREATE_POCKET = 0;
     const char COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS = 1;
-    const char COMMANDTYPECHAR_CREATE_PAGE = 2;
-    const char COMMANDTYPECHAR_UPDATE_PAGE_BY_ID = 3;
-    const char COMMANDTYPECHAR_READ_PAGE_BY_ID = 4;
+    const char COMMANDTYPECHAR_CREATE_FILE = 2;
+    const char COMMANDTYPECHAR_UPDATE_FILE_BY_ID = 3;
+    const char COMMANDTYPECHAR_READ_FILE_BY_ID = 4;
 
     class Command {
         unsigned char typeChar_;
@@ -56,40 +56,40 @@ namespace commands {
         unsigned long pocketID();
     };
     
-    class CreatePage : public Command {
+    class CreateFile : public Command {
         std::string name_;
         unsigned long pocketID_;
     public:
-        CreatePage(std::string name, unsigned long pocketID);
+        CreateFile(std::string name, unsigned long pocketID);
         void writeToVch(std::vector<unsigned char>* vch);
-        static commands::CreatePage* consumeFromBuf(unsigned char **ptrPtr);
+        static commands::CreateFile* consumeFromBuf(unsigned char **ptrPtr);
         std::string name();
         unsigned long pocketID();
     };
     
-    class UpdatePageByID : public Command {
-        unsigned long pageID_;
+    class UpdateFileByID : public Command {
+        unsigned long fileID_;
         unsigned char* data_;
         unsigned short dataSize_;
         bool mustFreeData_;
     public:
-        UpdatePageByID(unsigned long pageID, unsigned char* data, unsigned short dataSize);
-        ~UpdatePageByID();
+        UpdateFileByID(unsigned long fileID, unsigned char* data, unsigned short dataSize);
+        ~UpdateFileByID();
         void allocSpace();
         void writeToVch(std::vector<unsigned char>* vch);
-        static commands::UpdatePageByID* consumeFromBuf(unsigned char **ptrPtr);
-        unsigned long pageID();
+        static commands::UpdateFileByID* consumeFromBuf(unsigned char **ptrPtr);
+        unsigned long fileID();
         unsigned char* data();
         unsigned short dataSize();
     };
     
-    class ReadPageByID : public Command {
-	unsigned long pageID_;
+    class ReadFileByID : public Command {
+	unsigned long fileID_;
     public:
-	ReadPageByID(unsigned long pageID);
+	ReadFileByID(unsigned long fileID);
 	void writeToVch(std::vector<unsigned char>* vch);
-	static commands::ReadPageByID* consumeFromBuf(unsigned char **ptrPtr);
-	unsigned long pageID();
+	static commands::ReadFileByID* consumeFromBuf(unsigned char **ptrPtr);
+	unsigned long fileID();
     };
 
 namespace results {
@@ -136,29 +136,29 @@ namespace results {
         std::string depositAddress();
     };
     
-    class CreatePage : public Result {
-        unsigned long pageID_;
+    class CreateFile : public Result {
+        unsigned long fileID_;
     public:
-        CreatePage(unsigned long cost, unsigned long pageID);
+        CreateFile(unsigned long cost, unsigned long fileID);
         void writeToVch(std::vector<unsigned char>* vch);
-        static results::CreatePage* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
-        unsigned long pageID();
+        static results::CreateFile* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
+        unsigned long fileID();
     };
     
-    class UpdatePageByID : public Result {
+    class UpdateFileByID : public Result {
     public:
-        UpdatePageByID(unsigned long cost);
+        UpdateFileByID(unsigned long cost);
         void writeToVch(std::vector<unsigned char>* vch);
-        static results::UpdatePageByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
+        static results::UpdateFileByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
     };
     
-    class ReadPageByID : public Result {
-        std::vector<unsigned char> pageData_;
+    class ReadFileByID : public Result {
+        std::vector<unsigned char> fileData_;
     public:
-        ReadPageByID(unsigned long cost, std::vector<unsigned char> pageData);
+        ReadFileByID(unsigned long cost, std::vector<unsigned char> fileData);
         void writeToVch(std::vector<unsigned char>* vch);
-        static results::ReadPageByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
-        std::vector<unsigned char>* pageData();
+        static results::ReadFileByID* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
+        std::vector<unsigned char>* fileData();
     };
 
 }//namespace commands::results

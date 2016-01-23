@@ -26,14 +26,14 @@ namespace commands {
         if (typeChar == COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS) {
             return commands::RequestPocketDepositAddress::consumeFromBuf(ptrPtr);
         }
-        if (typeChar == COMMANDTYPECHAR_CREATE_PAGE) {
-            return commands::CreatePage::consumeFromBuf(ptrPtr);
+        if (typeChar == COMMANDTYPECHAR_CREATE_FILE) {
+            return commands::CreateFile::consumeFromBuf(ptrPtr);
         }
-        if (typeChar == COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
-            return commands::UpdatePageByID::consumeFromBuf(ptrPtr);
+        if (typeChar == COMMANDTYPECHAR_UPDATE_FILE_BY_ID) {
+            return commands::UpdateFileByID::consumeFromBuf(ptrPtr);
         }
-        if (typeChar == COMMANDTYPECHAR_READ_PAGE_BY_ID) {
-            return commands::ReadPageByID::consumeFromBuf(ptrPtr);
+        if (typeChar == COMMANDTYPECHAR_READ_FILE_BY_ID) {
+            return commands::ReadFileByID::consumeFromBuf(ptrPtr);
         }
         else {
             throw std::runtime_error("bad packet; unrecognized command typechar '" + boost::lexical_cast<std::string>(typeChar) + "'");
@@ -138,11 +138,11 @@ namespace commands {
     
     
     
-    CreatePage::CreatePage(std::string name, unsigned long pocketID)
-    : Command(COMMANDTYPECHAR_CREATE_PAGE), name_(name), pocketID_(pocketID)
+    CreateFile::CreateFile(std::string name, unsigned long pocketID)
+    : Command(COMMANDTYPECHAR_CREATE_FILE), name_(name), pocketID_(pocketID)
     {}
     
-    void CreatePage::writeToVch(std::vector<unsigned char>* vch) {
+    void CreateFile::writeToVch(std::vector<unsigned char>* vch) {
         Command::writeToVch(vch);
         
         unsigned char nameSize = name_.size();
@@ -163,7 +163,7 @@ namespace commands {
         assert(place == vch->size());
     }
     
-    commands::CreatePage* CreatePage::consumeFromBuf(unsigned char **ptrPtr) {
+    commands::CreateFile* CreateFile::consumeFromBuf(unsigned char **ptrPtr) {
         unsigned char nameSize;
         *ptrPtr += unpack(*ptrPtr, "C", &nameSize);
         
@@ -175,32 +175,32 @@ namespace commands {
         unsigned long pocketID;
         *ptrPtr += unpack(*ptrPtr, "L", &pocketID);
         
-        return new commands::CreatePage(name, pocketID);
+        return new commands::CreateFile(name, pocketID);
     }
     
-    std::string CreatePage::name() {return name_;}
-    unsigned long CreatePage::pocketID() {return pocketID_;}
+    std::string CreateFile::name() {return name_;}
+    unsigned long CreateFile::pocketID() {return pocketID_;}
     
     
     
-    UpdatePageByID::UpdatePageByID(unsigned long pageID, unsigned char* data, unsigned short dataSize)
-    : Command(COMMANDTYPECHAR_UPDATE_PAGE_BY_ID), pageID_(pageID), data_(data), dataSize_(dataSize)
+    UpdateFileByID::UpdateFileByID(unsigned long fileID, unsigned char* data, unsigned short dataSize)
+    : Command(COMMANDTYPECHAR_UPDATE_FILE_BY_ID), fileID_(fileID), data_(data), dataSize_(dataSize)
     {
         mustFreeData_ = false;
     }
     
-    UpdatePageByID::~UpdatePageByID() {
+    UpdateFileByID::~UpdateFileByID() {
         if (mustFreeData_) {
             delete [] data_;
         }
     }
     
-    void UpdatePageByID::allocSpace() {
+    void UpdateFileByID::allocSpace() {
         data_ = new unsigned char[(int)dataSize_];
         mustFreeData_ = true;
     }
     
-    void UpdatePageByID::writeToVch(std::vector<unsigned char>* vch) {
+    void UpdateFileByID::writeToVch(std::vector<unsigned char>* vch) {
         Command::writeToVch(vch);
         
         const size_t DATA_SIZE = PACK_L_SIZE + PACK_H_SIZE + dataSize_;
@@ -209,7 +209,7 @@ namespace commands {
         
         vch->resize(place + DATA_SIZE);
         
-        place += pack(vch->data()+place, "LH", pageID_, dataSize_);
+        place += pack(vch->data()+place, "LH", fileID_, dataSize_);
         
         std::copy_n(data_, dataSize_, vch->data()+place);
         place += dataSize_;
@@ -217,12 +217,12 @@ namespace commands {
         assert(place == vch->size());
     }
     
-    commands::UpdatePageByID* UpdatePageByID::consumeFromBuf(unsigned char **ptrPtr) {
-        unsigned long pageID;
+    commands::UpdateFileByID* UpdateFileByID::consumeFromBuf(unsigned char **ptrPtr) {
+        unsigned long fileID;
         unsigned short dataSize;
-        *ptrPtr += unpack(*ptrPtr, "LH", &pageID, &dataSize);
+        *ptrPtr += unpack(*ptrPtr, "LH", &fileID, &dataSize);
         
-        commands::UpdatePageByID* newWriteCmd = new UpdatePageByID(pageID, NULL, dataSize);
+        commands::UpdateFileByID* newWriteCmd = new UpdateFileByID(fileID, NULL, dataSize);
         newWriteCmd->allocSpace();
         std::copy_n(*ptrPtr, dataSize, newWriteCmd->data());
         *ptrPtr += dataSize;
@@ -230,17 +230,17 @@ namespace commands {
         return newWriteCmd;
     }
     
-    unsigned long UpdatePageByID::pageID() {return pageID_;}
-    unsigned char* UpdatePageByID::data() {return data_;}
-    unsigned short UpdatePageByID::dataSize() {return dataSize_;}
+    unsigned long UpdateFileByID::fileID() {return fileID_;}
+    unsigned char* UpdateFileByID::data() {return data_;}
+    unsigned short UpdateFileByID::dataSize() {return dataSize_;}
     
     
     
-    ReadPageByID::ReadPageByID(unsigned long pageID)
-    : Command(COMMANDTYPECHAR_READ_PAGE_BY_ID), pageID_(pageID)
+    ReadFileByID::ReadFileByID(unsigned long fileID)
+    : Command(COMMANDTYPECHAR_READ_FILE_BY_ID), fileID_(fileID)
     {}
     
-    void ReadPageByID::writeToVch(std::vector<unsigned char>* vch) {
+    void ReadFileByID::writeToVch(std::vector<unsigned char>* vch) {
         Command::writeToVch(vch);
         
         const size_t DATA_SIZE = PACK_L_SIZE;
@@ -249,21 +249,21 @@ namespace commands {
         
         vch->resize(place + DATA_SIZE);
         
-        place += pack(vch->data()+place, "L", pageID_);
+        place += pack(vch->data()+place, "L", fileID_);
         
         assert(place == vch->size());
     }
     
-    commands::ReadPageByID* ReadPageByID::consumeFromBuf(unsigned char **ptrPtr) {
-        unsigned long pageID;
-        *ptrPtr += unpack(*ptrPtr, "L", &pageID);
+    commands::ReadFileByID* ReadFileByID::consumeFromBuf(unsigned char **ptrPtr) {
+        unsigned long fileID;
+        *ptrPtr += unpack(*ptrPtr, "L", &fileID);
         
-        commands::ReadPageByID* newReadCmd = new ReadPageByID(pageID);
+        commands::ReadFileByID* newReadCmd = new ReadFileByID(fileID);
         
         return newReadCmd;
     }
     
-    unsigned long ReadPageByID::pageID() {return pageID_;}
+    unsigned long ReadFileByID::fileID() {return fileID_;}
 
 namespace results {
 
@@ -296,14 +296,14 @@ namespace results {
         else if (commandType == commands::COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS) {
             return results::RequestPocketDepositAddress::consumeFromBuf(cost, ptrPtr);
         }
-        else if (commandType == commands::COMMANDTYPECHAR_CREATE_PAGE) {
-            return results::CreatePage::consumeFromBuf(cost, ptrPtr);
+        else if (commandType == commands::COMMANDTYPECHAR_CREATE_FILE) {
+            return results::CreateFile::consumeFromBuf(cost, ptrPtr);
         }
-        else if (commandType == commands::COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
-            return results::UpdatePageByID::consumeFromBuf(cost, ptrPtr);
+        else if (commandType == commands::COMMANDTYPECHAR_UPDATE_FILE_BY_ID) {
+            return results::UpdateFileByID::consumeFromBuf(cost, ptrPtr);
         }
-        else if (commandType == commands::COMMANDTYPECHAR_READ_PAGE_BY_ID) {
-            return results::ReadPageByID::consumeFromBuf(cost, ptrPtr);
+        else if (commandType == commands::COMMANDTYPECHAR_READ_FILE_BY_ID) {
+            return results::ReadFileByID::consumeFromBuf(cost, ptrPtr);
         }
         
         else {
@@ -439,11 +439,11 @@ namespace results {
     
     
     
-    CreatePage::CreatePage(unsigned long cost, unsigned long pageID)
-    : Result(errors::ERRORTYPECHAR_NONE, cost), pageID_(pageID)
+    CreateFile::CreateFile(unsigned long cost, unsigned long fileID)
+    : Result(errors::ERRORTYPECHAR_NONE, cost), fileID_(fileID)
     {}
     
-    void CreatePage::writeToVch(std::vector<unsigned char>* vch) {
+    void CreateFile::writeToVch(std::vector<unsigned char>* vch) {
         Result::writeToVch(vch);
         
         static const size_t DATA_SIZE = PACK_L_SIZE;
@@ -451,72 +451,72 @@ namespace results {
         unsigned long place = vch->size();
         
         vch->resize(place + DATA_SIZE);
-        place += pack(vch->data() + place, "L", pageID_);
+        place += pack(vch->data() + place, "L", fileID_);
         assert(place == vch->size());
     }
     
-    results::CreatePage* CreatePage::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
-        unsigned long pageID;
-        *ptrPtr += unpack(*ptrPtr, "L", &pageID);
+    results::CreateFile* CreateFile::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+        unsigned long fileID;
+        *ptrPtr += unpack(*ptrPtr, "L", &fileID);
         
-        return new results::CreatePage(cost, pageID);
+        return new results::CreateFile(cost, fileID);
     }
     
-    unsigned long CreatePage::pageID() {return pageID_;}
+    unsigned long CreateFile::fileID() {return fileID_;}
     
     
     
-    UpdatePageByID::UpdatePageByID(unsigned long cost)
+    UpdateFileByID::UpdateFileByID(unsigned long cost)
     : Result(errors::ERRORTYPECHAR_NONE, cost)
     {}
     
-    void UpdatePageByID::writeToVch(std::vector<unsigned char>* vch) {
+    void UpdateFileByID::writeToVch(std::vector<unsigned char>* vch) {
         Result::writeToVch(vch);
     }
     
-    results::UpdatePageByID* UpdatePageByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
-        return new results::UpdatePageByID(cost);
+    results::UpdateFileByID* UpdateFileByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+        return new results::UpdateFileByID(cost);
     }
     
     
     
-    ReadPageByID::ReadPageByID(unsigned long cost, std::vector<unsigned char> pageData)
-    : Result(errors::ERRORTYPECHAR_NONE, cost), pageData_(pageData)
+    ReadFileByID::ReadFileByID(unsigned long cost, std::vector<unsigned char> fileData)
+    : Result(errors::ERRORTYPECHAR_NONE, cost), fileData_(fileData)
     {}
     
-    void ReadPageByID::writeToVch(std::vector<unsigned char>* vch) {
+    void ReadFileByID::writeToVch(std::vector<unsigned char>* vch) {
         Result::writeToVch(vch);
         
-        unsigned short pageDataSize = pageData_.size();
+        unsigned short fileDataSize = fileData_.size();
         
-        const size_t DATA_SIZE = PACK_H_SIZE + pageDataSize;
+        const size_t DATA_SIZE = PACK_H_SIZE + fileDataSize;
         
         unsigned int place = vch->size();
         
         vch->resize(place + DATA_SIZE);
         
-        place += pack(vch->data()+place, "H", pageDataSize);
+        place += pack(vch->data()+place, "H", fileDataSize);
         
-        std::copy(pageData_.begin(), pageData_.end(), vch->data()+place);
-        place += pageDataSize;
+        std::copy(fileData_.begin(), fileData_.end(), vch->data()+place);
+        place += fileDataSize;
         
         assert(place == vch->size());
     }
     
-    results::ReadPageByID* ReadPageByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
-        unsigned short pageDataSize;
-        *ptrPtr += unpack(*ptrPtr, "H", &pageDataSize);
+    results::ReadFileByID* ReadFileByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+        unsigned short fileDataSize;
+        *ptrPtr += unpack(*ptrPtr, "H", &fileDataSize);
         
-        std::vector<unsigned char> pageData;
-        pageData.resize(pageDataSize);
-        std::copy_n(*ptrPtr, pageDataSize, pageData.begin());
-        *ptrPtr += pageDataSize;
+        std::vector<unsigned char> fileData;
+        fileData.resize(fileDataSize);
+        std::copy_n(*ptrPtr, fileDataSize, fileData.begin());
+        *ptrPtr += fileDataSize;
         
-        return new results::ReadPageByID(cost, pageData);
+        return new results::ReadFileByID(cost, fileData);
     }
     
-    std::vector<unsigned char>* ReadPageByID::pageData() {
-        return &pageData_;
+    std::vector<unsigned char>* ReadFileByID::fileData() {
+        return &fileData_;
     }
 
 }//namesace commands::results

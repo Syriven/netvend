@@ -75,19 +75,19 @@ void checkOwnedPocket(unsigned long pocketID, std::string agentAddress) {
     }
 }
 
-void checkOwnedPage(unsigned long pageID, std::string agentAddress) {
+void checkOwnedFile(unsigned long fileID, std::string agentAddress) {
     std::string fetchedAgentAddress;
     try {
-        fetchedAgentAddress = database::fetchPageOwner(dbConn, pageID);
+        fetchedAgentAddress = database::fetchFileOwner(dbConn, fileID);
     }
     catch (database::NoRowFoundException &e) {
         //Row doesn't exist; pocketID is invalid
-        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pageID), 0, true);
+        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(fileID), 0, true);
         throw NetvendCommandException(error);
     }
     if (fetchedAgentAddress != agentAddress) {
         //Pocket exists but is owned by a different agent
-        commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(pageID), 0, true);
+        commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(fileID), 0, true);
         throw NetvendCommandException(error);
     }
 }
@@ -116,59 +116,59 @@ boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequest
     return rpdaResult;
 }
 
-boost::shared_ptr<commands::results::CreatePage> processCreatePageCommand(std::string agentAddress, boost::shared_ptr<commands::CreatePage> command) {
+boost::shared_ptr<commands::results::CreateFile> processCreateFileCommand(std::string agentAddress, boost::shared_ptr<commands::CreateFile> command) {
     unsigned long pocketID = command->pocketID();
     
     checkOwnedPocket(pocketID, agentAddress);
     
     std::string name = command->name();
     
-    unsigned long pageID = database::insertPage(dbConn, agentAddress, name, pocketID);
+    unsigned long fileID = database::insertFile(dbConn, agentAddress, name, pocketID);
     
-    boost::shared_ptr<commands::results::CreatePage> ccResult(
-      new commands::results::CreatePage(0, pageID)
+    boost::shared_ptr<commands::results::CreateFile> ccResult(
+      new commands::results::CreateFile(0, fileID)
     );
     
     return ccResult;
 }
 
-boost::shared_ptr<commands::results::UpdatePageByID> processUpdatePageByIDCommand(std::string agentAddress, boost::shared_ptr<commands::UpdatePageByID> command) {
-    unsigned long pageID = command->pageID();
+boost::shared_ptr<commands::results::UpdateFileByID> processUpdateFileByIDCommand(std::string agentAddress, boost::shared_ptr<commands::UpdateFileByID> command) {
+    unsigned long fileID = command->fileID();
     
-    checkOwnedPage(pageID, agentAddress);
+    checkOwnedFile(fileID, agentAddress);
     
     unsigned char* data = command->data();
     unsigned short dataSize = command->dataSize();
     
     try {
-        database::updatePageByID(dbConn, pageID, data, dataSize);
+        database::updateFileByID(dbConn, fileID, data, dataSize);
     }
     catch (database::NoRowFoundException &e) {
-        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pageID), 0, true);
+        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(fileID), 0, true);
         throw NetvendCommandException(error);
     }
     
-    boost::shared_ptr<commands::results::UpdatePageByID> ucbiResult(
-      new commands::results::UpdatePageByID(0)
+    boost::shared_ptr<commands::results::UpdateFileByID> ucbiResult(
+      new commands::results::UpdateFileByID(0)
     );
     
     return ucbiResult;
 }
 
-boost::shared_ptr<commands::results::ReadPageByID> processReadPageByIDCommand(std::string agentAddress, boost::shared_ptr<commands::ReadPageByID> command) {
-    unsigned long pageID = command->pageID();
+boost::shared_ptr<commands::results::ReadFileByID> processReadFileByIDCommand(std::string agentAddress, boost::shared_ptr<commands::ReadFileByID> command) {
+    unsigned long fileID = command->fileID();
     
-    std::vector<unsigned char> pageData;
+    std::vector<unsigned char> fileData;
     try {
-        pageData = database::readPageByID(dbConn, pageID);
+        fileData = database::readFileByID(dbConn, fileID);
     }
     catch (database::NoRowFoundException &e) {
-        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pageID), 0, true);
+        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(fileID), 0, true);
         throw NetvendCommandException(error);
     }
     
-    boost::shared_ptr<commands::results::ReadPageByID> readResult(
-      new commands::results::ReadPageByID(0, pageData)
+    boost::shared_ptr<commands::results::ReadFileByID> readResult(
+      new commands::results::ReadFileByID(0, fileData)
     );
     
     return readResult;
@@ -195,35 +195,35 @@ boost::shared_ptr<commands::results::Result> processCommand(std::string agentAdd
         
         return processRequestPocketDepositAddressCommand(agentAddress, rpdaCommand);
     }
-    else if (command->typeChar() == commands::COMMANDTYPECHAR_CREATE_PAGE) {
-        boost::shared_ptr<commands::CreatePage> ccCommand = 
-        boost::dynamic_pointer_cast<commands::CreatePage>(command);
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_CREATE_FILE) {
+        boost::shared_ptr<commands::CreateFile> ccCommand = 
+        boost::dynamic_pointer_cast<commands::CreateFile>(command);
         
         if (ccCommand.get() == NULL) {
-            throw networking::NetvendDecodeException("Error decoding what seems to be an CreatePage command.");
+            throw networking::NetvendDecodeException("Error decoding what seems to be an CreateFile command.");
         }
         
-        return processCreatePageCommand(agentAddress, ccCommand);
+        return processCreateFileCommand(agentAddress, ccCommand);
     }
-    else if (command->typeChar() == commands::COMMANDTYPECHAR_UPDATE_PAGE_BY_ID) {
-        boost::shared_ptr<commands::UpdatePageByID> writeCommand = 
-        boost::dynamic_pointer_cast<commands::UpdatePageByID>(command);
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_UPDATE_FILE_BY_ID) {
+        boost::shared_ptr<commands::UpdateFileByID> writeCommand = 
+        boost::dynamic_pointer_cast<commands::UpdateFileByID>(command);
         
         if (writeCommand.get() == NULL) {
             throw networking::NetvendDecodeException("Error decoding what seems to be an ucbi command.");
         }
         
-        return processUpdatePageByIDCommand(agentAddress, writeCommand);
+        return processUpdateFileByIDCommand(agentAddress, writeCommand);
     }
-    else if (command->typeChar() == commands::COMMANDTYPECHAR_READ_PAGE_BY_ID) {
-        boost::shared_ptr<commands::ReadPageByID> readCommand =
-        boost::dynamic_pointer_cast<commands::ReadPageByID>(command);
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_READ_FILE_BY_ID) {
+        boost::shared_ptr<commands::ReadFileByID> readCommand =
+        boost::dynamic_pointer_cast<commands::ReadFileByID>(command);
         
         if (readCommand.get() == NULL) {
-            throw networking::NetvendDecodeException("Error decoding what seems to be a readPage command.");
+            throw networking::NetvendDecodeException("Error decoding what seems to be a readFile command.");
         }
         
-        return processReadPageByIDCommand(agentAddress, readCommand);
+        return processReadFileByIDCommand(agentAddress, readCommand);
     }
     else {
         throw networking::NetvendDecodeException((std::string("Error decoding command with commandtypechar ") + boost::lexical_cast<std::string>(command->typeChar())).c_str());

@@ -197,43 +197,41 @@ public:
         return rpdaResult->depositAddress();
     }
     
-    unsigned long createPage(std::string name, unsigned long pocketID) {
-        boost::shared_ptr<commands::Command> command(new commands::CreatePage(name, pocketID));
+    unsigned long createFile(std::string name, unsigned long pocketID) {
+        boost::shared_ptr<commands::Command> command(new commands::CreateFile(name, pocketID));
         
         boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
         
-        boost::shared_ptr<commands::results::CreatePage> ccResult =
-          boost::dynamic_pointer_cast<commands::results::CreatePage>(result);
+        boost::shared_ptr<commands::results::CreateFile> ccResult =
+          boost::dynamic_pointer_cast<commands::results::CreateFile>(result);
         
         assert(ccResult.get() != NULL);
         
-        return ccResult->pageID();
+        return ccResult->fileID();
     }
     
-    void updatePageByID(unsigned long pageID, unsigned char* data, unsigned short dataSize) {
-        boost::shared_ptr<commands::Command> command(new commands::UpdatePageByID(pageID, data, dataSize));
+    void updateFileByID(unsigned long fileID, unsigned char* data, unsigned short dataSize) {
+        boost::shared_ptr<commands::Command> command(new commands::UpdateFileByID(fileID, data, dataSize));
         
         boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
         
-        boost::shared_ptr<commands::results::UpdatePageByID> ucbiResult =
-        boost::dynamic_pointer_cast<commands::results::UpdatePageByID>(result);
+        boost::shared_ptr<commands::results::UpdateFileByID> ucbiResult =
+        boost::dynamic_pointer_cast<commands::results::UpdateFileByID>(result);
         
         assert(ucbiResult.get() != NULL);
     }
     
-    std::vector<unsigned char> readPageByID(unsigned long pageID) {
-        boost::shared_ptr<commands::Command> command(new commands::ReadPageByID(pageID));
+    std::vector<unsigned char> readFileByID(unsigned long fileID) {
+        boost::shared_ptr<commands::Command> command(new commands::ReadFileByID(fileID));
         
         boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
         
-        boost::shared_ptr<commands::results::ReadPageByID> readResult =
-        boost::dynamic_pointer_cast<commands::results::ReadPageByID>(result);
+        boost::shared_ptr<commands::results::ReadFileByID> readResult =
+        boost::dynamic_pointer_cast<commands::results::ReadFileByID>(result);
         
         assert(readResult.get() != NULL);
         
-        std::cout << "size: " << readResult->pageData()->size() << std::endl;
-        
-        return *(readResult->pageData());
+        return *(readResult->fileData());
     }
 };
 
@@ -252,8 +250,8 @@ agent [name] - select agent\n\
 h - Perform netvend handshake\n\
 newpocket - Create new Pocket\n\
 pocketdeposit [pocketID] - Request deposit address for pocket\n\
-newpage [name] [pocketID] - Create a new page with [name], thethered to pocket [pocketID]\n\
-write [pageID] [data] - write to page [pageID] with [data] (overwrites old data)";
+newfile [name] [pocketID] - Create a new file with [name], thethered to pocket [pocketID]\n\
+write [fileID] [data] - write to file [fileID] with [data] (overwrites old data)";
 
 void createNewAgent(std::string name, boost::asio::io_service& io, bool output=true) {
     Agent agent(io);
@@ -335,34 +333,34 @@ int main() {
             
             std::cout << "Pocket " << pocketID << " now has a deposit address " << selectedAgent->requestPocketDepositAddress(pocketID) << std::endl;
         }
-        else if (commandCode == "newpage") {
+        else if (commandCode == "newfile") {
             std::string name;
             unsigned long pocketID;
             
             std::cin >> name >> pocketID;
             
-            std::cout << "Page " << selectedAgent->createPage(name, pocketID) << " has been created." << std::endl;
+            std::cout << "File " << selectedAgent->createFile(name, pocketID) << " has been created." << std::endl;
         }
         else if (commandCode == "write") {
-            unsigned long pageID;
+            unsigned long fileID;
             std::string s;
             
-            std::cin >> pageID >> s;
+            std::cin >> fileID >> s;
             
-            selectedAgent->updatePageByID(pageID, (unsigned char*)s.data(), s.size());
+            selectedAgent->updateFileByID(fileID, (unsigned char*)s.data(), s.size());
             
-            std::cout << "Page " << pageID << " updated." << std::endl;
+            std::cout << "File " << fileID << " updated." << std::endl;
         }
         else if (commandCode == "read") {
-            unsigned long pageID;
+            unsigned long fileID;
             
-            std::cin >> pageID;
+            std::cin >> fileID;
             
-            std::vector<unsigned char> pageData = selectedAgent->readPageByID(pageID);
+            std::vector<unsigned char> fileData = selectedAgent->readFileByID(fileID);
             
             std::string s;
-            s.resize(pageData.size());
-            std::copy(pageData.begin(), pageData.end(), s.begin());
+            s.resize(fileData.size());
+            std::copy(fileData.begin(), fileData.end(), s.begin());
             
             std::cout << "data: " << s << std::endl;
         }
@@ -371,8 +369,8 @@ int main() {
             selectAgent("default");
             selectedAgent->setConnection(&nvConnection);
             unsigned long pocket = selectedAgent->performNetvendHandshake();
-            unsigned long page = selectedAgent->createPage("testpage", pocket);
-            selectedAgent->updatePageByID(page, (unsigned char*)"hi", 2);
+            unsigned long file = selectedAgent->createFile("testfile", pocket);
+            selectedAgent->updateFileByID(file, (unsigned char*)"hi", 2);
         }
         else {
             std::cout << "Unrecognized command." << std::endl;

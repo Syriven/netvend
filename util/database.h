@@ -21,10 +21,10 @@ const std::string FETCH_POCKET_OWNER = "FetchPocketOwner";
 const std::string UPDATE_POCKET_OWNER = "UpdatePocketOwner";
 const std::string UPDATE_POCKET_DEPOSIT_ADDRESS = "UpdatePocketDepositAddress";
 
-const std::string INSERT_PAGE = "InsertPage";
-const std::string FETCH_PAGE_OWNER = "FetchPageOwner";
-const std::string UPDATE_PAGE_BY_ID = "UpdatePageByID";
-const std::string READ_PAGE_BY_ID = "ReadPageByID";
+const std::string INSERT_FILE = "InsertFile";
+const std::string FETCH_FILE_OWNER = "FetchFileOwner";
+const std::string UPDATE_FILE_BY_ID = "UpdateFileByID";
+const std::string READ_FILE_BY_ID = "ReadFileByID";
 
 class NoRowFoundException : public std::runtime_error {
 public:
@@ -50,10 +50,10 @@ std::string fetchPocketOwner(pqxx::connection *dbConn, unsigned long pocketID);
 void updatePocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string newOwnerAddress);
 void updatePocketDepositAddress(pqxx::connection* dbConn, std::string ownerAddress, unsigned long pocketID, std::string newDepositAddress);
 
-unsigned long insertPage(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID);
-std::string fetchPageOwner(pqxx::connection *dbConn, unsigned long chunkID);
-void updatePageByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize);
-std::vector<unsigned char> readPageByID(pqxx::connection *dbConn, unsigned long chunkID);
+unsigned long insertFile(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID);
+std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long chunkID);
+void updateFileByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize);
+std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long chunkID);
 
 }//namespace database
 
