@@ -8,7 +8,7 @@ CREATE TABLE agents (
 CREATE TABLE pockets (
     pocket_id SERIAL,
     owner character(34) REFERENCES agents(agent_address),
-    amount int DEFAULT(0),
+    amount bigint DEFAULT(0),
     deposit_address character(34),
     PRIMARY KEY (pocket_id)
 );
@@ -19,7 +19,8 @@ CREATE TABLE files (
     name varchar(256),
     pocket int NOT NULL REFERENCES pockets(pocket_id),
     data bytea,
-    PRIMARY KEY (file_id)
+    PRIMARY KEY (file_id),
+    UNIQUE (owner, name)
 );
 
 ALTER TABLE agents ADD FOREIGN KEY (default_pocket) REFERENCES pockets(pocket_id);
