@@ -6,6 +6,9 @@
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+#include <boost/chrono.hpp>
 #include <pqxx/pqxx>
 
 #include "netvend/common_constants.h"
@@ -21,6 +24,7 @@
 using boost::asio::ip::tcp;
 
 pqxx::connection *dbConn;
+boost::property_tree::ptree config;
 
 networking::HandshakeResponse processHandshakePacket(boost::shared_ptr<networking::HandshakePacket> packet) {
     crypto::RSAPubkey pubkey = packet->pubkey();
@@ -276,6 +280,34 @@ networking::CommandBatchResponse processCommandBatchPacket(boost::shared_ptr<net
     return networking::CommandBatchResponse(crb, commands::COMMANDBATCH_COMPLETION_ALL);
 }
 
+class FeeHandler {
+    boost::chrono::process_real_cpu_clock::time_point lastFeeChargedTime;
+    pqxx::connection *feeDbConn;
+public:
+    FeeHandler() {
+        database::prepareConnection(&feeDbConn);
+    }
+    void operator()() {
+        chargeFees();
+        lastFeeChargedTime = boost::chrono::process_real_cpu_clock::now();
+        
+        while (true) {
+            boost::chrono::process_real_cpu_clock::time_point wakeTime =
+                lastFeeChargedTime + boost::chrono::seconds(config.get<int>("fees.fee-interval"));
+            boost::this_thread::sleep_until(wakeTime);
+            
+            lastFeeChargedTime = wakeTime;
+            
+            chargeFees();
+        }
+    }
+    
+    void chargeFees() {
+        int creditPerByte = config.get<float>("fees.store-byte") * config.get<int>("fees.fee-interval") * config.get<int>("general.credits-per-satoshi");
+        database::chargeFileUpkeepFees(feeDbConn, creditPerByte);
+    }
+};
+
 class ConnectionHandler
   : public boost::enable_shared_from_this<ConnectionHandler>
 {
@@ -364,12 +396,25 @@ private:
     }
 };
 
+void loadConfigVars() {
+    boost::property_tree::ini_parser::read_ini("config.ini", config);
+}
+
 int main() {
+    loadConfigVars();
+    
+    std::cout << "store byte fee: " << config.get<float>("fees.store-byte") << std::endl;
+    
     database::prepareConnection(&dbConn);
     
     try {
         boost::asio::io_service io;
+        
+        FeeHandler hs;
+        boost::thread hsThread(hs);
+        
         ListenServer ls(io);
+        
         io.run();
     }
     catch (std::exception& e) {

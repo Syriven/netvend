@@ -10,6 +10,8 @@
 
 namespace database {
 
+const std::string FETCH_FILE_FEES_SUPPORTED_PER_POCKET = "FetchFileFeesSupportedPerPocket";
+    
 const std::string CHECK_AGENT_EXISTS = "CheckAgentExists";
 const std::string INSERT_AGENT = "InsertAgent";
 const std::string FETCH_AGENT_PUBKEY = "FetchAgentPubkey";
@@ -54,6 +56,8 @@ unsigned long insertFile(pqxx::connection *dbConn, std::string ownerAddress, std
 std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long chunkID);
 void updateFileByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize);
 std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long chunkID);
+
+void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerByte);
 
 }//namespace database
 

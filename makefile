@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS = -g -Wall -std=c++0x
 
 INC=-I/usr/local/include -I/home/syriven/develop/c++/common -I./
-LIB=-lpqxx -lpq -lboost_system -lpthread -lcryptopp
+LIB=-lpqxx -lpq -lboost_system -lpthread -lboost_thread -lcryptopp -lrt -lboost_chrono -lboost_timer
 
 
 %.o: %.cpp

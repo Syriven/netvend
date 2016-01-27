@@ -15,6 +15,8 @@ void prepareConnection(pqxx::connection **dbConn) {
     
     std::cout << "peparing queries..." << std::endl;
     
+    (*dbConn)->prepare(FETCH_FILE_FEES_SUPPORTED_PER_POCKET, "SELECT pocket, SUM(COALESCE(OCTET_LENGTH(data),0))*$1 AS total_fees FROM files GROUP BY pocket");
+    
     (*dbConn)->prepare(CHECK_AGENT_EXISTS, "SELECT EXISTS(SELECT 1 FROM agents WHERE agent_address = $1)");
     (*dbConn)->prepare(INSERT_AGENT, "INSERT INTO agents (agent_address, public_key, default_pocket) VALUES ($1, $2, $3)");
     (*dbConn)->prepare(FETCH_AGENT_PUBKEY, "SELECT public_key FROM agents WHERE agent_address = $1");
@@ -204,6 +206,56 @@ std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long 
     fileDataVch.resize(fileDataBlob.size());
     std::copy(fileDataBlob.begin(), fileDataBlob.end(), fileDataVch.begin());
     return fileDataVch;
+}
+
+void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerByte) {
+    //get total bytes each pocket is responsible for supporting
+    pqxx::work fetchFeesTx(*dbConn, "FetchFileFeesSupportedPerPocketWork");
+    pqxx::result feesPerPocketResult = fetchFeesTx.prepared(FETCH_FILE_FEES_SUPPORTED_PER_POCKET)(creditPerByte).exec();
+    fetchFeesTx.commit();
+    
+    
+    //if a pocket can't support the fees, we delete all the files supported by that pocket
+    //construct the delete query
+    std::string removeFilesQuery = "DELETE FROM files WHERE pocket IN (SELECT pocket_id FROM pockets WHERE amount < CASE pocket_id ";
+    for (int i=0; i<feesPerPocketResult.size(); i++) {
+        removeFilesQuery.append("WHEN ").append(feesPerPocketResult[i][0].c_str()).append(" THEN ").append(feesPerPocketResult[i][1].c_str()).append(" ");
+    }
+    removeFilesQuery.append("END)");
+    
+    std::cout << "query:" << std::endl << removeFilesQuery << std::endl;
+    
+    //run the delete query
+    pqxx::work deleteFilesTx(*dbConn, "DeleteBankruptFilesWork");
+    deleteFilesTx.exec(removeFilesQuery);
+    deleteFilesTx.commit();
+    
+    std::cout << "ran delete query" << std::endl;
+    
+    
+    //deduct fees
+    //construct the deduct query
+    std::string deductPocketsQuery = "UPDATE pockets SET amount = amount - CASE pocket_id ";
+    std::string deductInClauseList = "(";
+    for (int i=0; i<feesPerPocketResult.size(); i++) {
+        deductPocketsQuery.append("WHEN ").append(feesPerPocketResult[i][0].c_str()).append(" THEN ").append(feesPerPocketResult[i][1].c_str()).append(" ");
+        
+        deductInClauseList.append(feesPerPocketResult[i][0].c_str());
+        if (i+1 < feesPerPocketResult.size()) {
+            deductInClauseList.append(", ");
+        }
+    }
+    deductInClauseList.append(")");
+    deductPocketsQuery.append("END WHERE pocket_id IN ").append(deductInClauseList);
+    
+    std::cout << "running query:" << std::endl << deductPocketsQuery << std::endl;
+    
+    //run the deduct query
+    pqxx::work deductPocketsTx(*dbConn, "DeductPocketsWork");
+    deductPocketsTx.exec(deductPocketsQuery);
+    deductPocketsTx.commit();
+    
+    std::cout << "deduct query ran" << std::endl << std::endl;
 }
 
 }//namespace database
