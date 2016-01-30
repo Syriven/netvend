@@ -57,7 +57,7 @@ std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long chunkID);
 void updateFileByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize);
 std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long chunkID);
 
-void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerByte);
+void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerFile, int creditPerByte);
 
 }//namespace database
 

@@ -21,7 +21,7 @@ void prepareConnection(pqxx::connection **dbConn) {
                                                                 "(pockets.amount - sub.total_fees < 0) AS would_bankrupt "
                                                              "FROM ("
                                                                 "SELECT "
-                                                                    "pocket, SUM(COALESCE(OCTET_LENGTH(data),0))*$1 AS total_fees "
+                                                                    "pocket, COUNT(*)*$1 + SUM(COALESCE(OCTET_LENGTH(data),0))*$2 AS total_fees "
                                                                 "FROM files "
                                                                 "GROUP BY pocket "
                                                              ")"
@@ -220,10 +220,10 @@ std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long 
     return fileDataVch;
 }
 
-void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerByte) {
+void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerFile, int creditPerByte) {
     //get total bytes each pocket is responsible for supporting
     pqxx::work fetchFeesTx(*dbConn, "FetchFileFeesSupportedPerPocketWork");
-    pqxx::result feesPerPocketResult = fetchFeesTx.prepared(FETCH_FILE_FEES_SUPPORTED_PER_POCKET)(creditPerByte).exec();
+    pqxx::result feesPerPocketResult = fetchFeesTx.prepared(FETCH_FILE_FEES_SUPPORTED_PER_POCKET)(creditPerFile)(creditPerByte).exec();
     fetchFeesTx.commit();
     
     //if a pocket can't support the fees, we delete all the files supported by that pocket
@@ -265,12 +265,12 @@ void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerByte) {
     pqxx::work tx(*dbConn, "DeductFeesAndDeleteFilesWork");
     //run the delete query
     if (!bankruptListEmpty) {
-        //std::cout << "running delete files query:" << std::endl << removeFilesQuery << std::endl << std::endl;
+        std::cout << "running delete files query:" << std::endl << removeFilesQuery << std::endl << std::endl;
         tx.exec(removeFilesQuery);
     }
     //run the deduct query
     if (!chargeListEmpty) {
-        //std::cout << "running charge pockets query:" << std::endl << deductPocketsQuery << std::endl << std::endl;
+        std::cout << "running charge pockets query:" << std::endl << deductPocketsQuery << std::endl << std::endl;
         tx.exec(deductPocketsQuery);
     }
     

@@ -304,7 +304,8 @@ public:
     
     void chargeFees() {
         int creditPerByte = config.get<float>("fees.store-byte") * config.get<int>("fees.fee-interval") * config.get<int>("general.credits-per-satoshi");
-        database::chargeFileUpkeepFees(feeDbConn, creditPerByte);
+        int creditPerFile = config.get<float>("fees.store-file") * config.get<int>("fees.fee-interval") * config.get<int>("general.credits-per-satoshi");
+        database::chargeFileUpkeepFees(feeDbConn, creditPerFile, creditPerByte);
     }
 };
 
