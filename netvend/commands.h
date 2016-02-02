@@ -166,40 +166,84 @@ namespace results {
 namespace errors {
     
     const unsigned char ERRORTYPECHAR_NONE = 0;
-    const unsigned char ERRORTYPECHAR_INVALID_TARGET = 1;
-    const unsigned char ERRORTYPECHAR_TARGET_NOT_OWNED = 2;
+    const unsigned char ERRORTYPECHAR_SERVER_LOGIC = 1;
+    const unsigned char ERRORTYPECHAR_INVALID_TARGET = 2;
+    const unsigned char ERRORTYPECHAR_TARGET_NOT_OWNED = 3;
+    const unsigned char ERRORTYPECHAR_CREDIT_INSUFFICIENT = 4;
+    const unsigned char ERRORTYPECHAR_CREDIT_OVERFLOW = 5;
+    
+    const unsigned char ERRORSUBTYPECHAR_NONE = 0;
+    const unsigned char ERRORSUBTYPECHAR_AGENT = 1;
+    const unsigned char ERRORSUBTYPECHAR_POCKET = 2;
+    const unsigned char ERRORSUBTYPECHAR_FILE = 3;
     
     class Error : public results::Result, public std::runtime_error {
         bool fatalToBatch_;
     protected:
         std::string what_;
     public:
-        Error(unsigned char error, unsigned long cost, bool fatalToBatch);
+        Error(unsigned char errorType, unsigned long cost, bool fatalToBatch);
         void writeToVch(std::vector<unsigned char>* vch);
-        static Error* consumeFromBuf(unsigned char error, unsigned long cost, unsigned char **ptrPtr);
+        static Error* consumeFromBuf(unsigned char errorType, unsigned long cost, unsigned char **ptrPtr);
         bool fatalToBatch();
         virtual ~Error() throw() {}
         const char* what() const noexcept;
     };
     
-    class InvalidTarget : public Error {
-        std::string target_;
+    class ServerLogicError : public Error {
+        std::string errorString_;
     public:
-        InvalidTarget(std::string target, unsigned long cost, bool fatalToBatch);
+        ServerLogicError(std::string errorString, unsigned long cost, bool fatalToBatch);
         void setWhat();
         void writeToVch(std::vector<unsigned char>* vch);
-        static InvalidTarget* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
+        static ServerLogicError* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
+        std::string errorString();
+    };
+    
+    class InvalidTargetError : public Error {
+        std::string target_;
+    public:
+        InvalidTargetError(std::string target, unsigned long cost, bool fatalToBatch);
+        void setWhat();
+        void writeToVch(std::vector<unsigned char>* vch);
+        static InvalidTargetError* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
         std::string target();
     };
     
-    class TargetNotOwned : public Error {
+    class TargetNotOwnedError : public Error {
         std::string target_;
     public:
-        TargetNotOwned(std::string target, unsigned long cost, bool fatalToBatch);
+        TargetNotOwnedError(std::string target, unsigned long cost, bool fatalToBatch);
         void setWhat();
         void writeToVch(std::vector<unsigned char>* vch);
-        static TargetNotOwned* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
+        static TargetNotOwnedError* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
         std::string target();
+    };
+    
+    class CreditInsufficientError : public Error {
+        unsigned long requiredCredit_;
+        unsigned long availableCredit_;
+    public:
+        CreditInsufficientError(unsigned long requiredCredit, unsigned long availableCredit, unsigned long cost, bool fatalToBatch);
+        void setWhat();
+        void writeToVch(std::vector<unsigned char>* vch);
+        static CreditInsufficientError* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
+        unsigned long requiredCredit();
+        unsigned long availableCredit();
+        unsigned long creditMissing();
+    };
+    
+    class CreditOverflowError : public Error {
+        unsigned long pocketCredit_;
+        unsigned long addedCredit_;
+    public:
+        CreditOverflowError(unsigned long pocketCredit, unsigned long addedCredit, unsigned long cost, bool fatalToBatch);
+        void setWhat();
+        void writeToVch(std::vector<unsigned char>* vch);
+        static CreditOverflowError* consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr);
+        unsigned long pocketCredit();
+        unsigned long addedCredit();
+        unsigned long long totalCredit();
     };
     
 }//namespace commands::errors

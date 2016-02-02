@@ -61,41 +61,6 @@ networking::HandshakeResponse processHandshakePacket(boost::shared_ptr<networkin
     }
 }
 
-//throws appropriate errors if the pocket doesn't exist or isn't owned by the agent
-void checkOwnedPocket(unsigned long pocketID, std::string agentAddress) {
-    std::string fetchedAgentAddress;
-    try {
-        fetchedAgentAddress = database::fetchPocketOwner(dbConn, pocketID);
-    }
-    catch (database::NoRowFoundException &e) {
-        //Row doesn't exist; pocketID is invalid
-        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(pocketID), 0, true);
-        throw NetvendCommandException(error);
-    }
-    if (fetchedAgentAddress != agentAddress) {
-        //Pocket exists but is owned by a different agent
-        commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(pocketID), 0, true);
-        throw NetvendCommandException(error);
-    }
-}
-
-void checkOwnedFile(unsigned long fileID, std::string agentAddress) {
-    std::string fetchedAgentAddress;
-    try {
-        fetchedAgentAddress = database::fetchFileOwner(dbConn, fileID);
-    }
-    catch (database::NoRowFoundException &e) {
-        //Row doesn't exist; pocketID is invalid
-        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(fileID), 0, true);
-        throw NetvendCommandException(error);
-    }
-    if (fetchedAgentAddress != agentAddress) {
-        //Pocket exists but is owned by a different agent
-        commands::errors::Error* error = new commands::errors::TargetNotOwned(boost::lexical_cast<std::string>(fileID), 0, true);
-        throw NetvendCommandException(error);
-    }
-}
-
 boost::shared_ptr<commands::results::CreatePocket> processCreatePocketCommand(std::string agentAddress, boost::shared_ptr<commands::CreatePocket> command) {    
     unsigned int pocketID = database::insertPocket(dbConn, agentAddress);
     
@@ -107,7 +72,7 @@ boost::shared_ptr<commands::results::CreatePocket> processCreatePocketCommand(st
 boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequestPocketDepositAddressCommand(std::string agentAddress, boost::shared_ptr<commands::RequestPocketDepositAddress> command) {
     unsigned long pocketID = command->pocketID();
     
-    checkOwnedPocket(pocketID, agentAddress);
+    database::verifyPocketOwner(dbConn, pocketID, agentAddress);
     
     std::string depositAddress = btc::getNewDepositAddress();
     
@@ -123,7 +88,7 @@ boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequest
 boost::shared_ptr<commands::results::CreateFile> processCreateFileCommand(std::string agentAddress, boost::shared_ptr<commands::CreateFile> command) {
     unsigned long pocketID = command->pocketID();
     
-    checkOwnedPocket(pocketID, agentAddress);
+    database::verifyPocketOwner(dbConn, pocketID, agentAddress);
     
     std::string name = command->name();
     
@@ -139,18 +104,12 @@ boost::shared_ptr<commands::results::CreateFile> processCreateFileCommand(std::s
 boost::shared_ptr<commands::results::UpdateFileByID> processUpdateFileByIDCommand(std::string agentAddress, boost::shared_ptr<commands::UpdateFileByID> command) {
     unsigned long fileID = command->fileID();
     
-    checkOwnedFile(fileID, agentAddress);
+    database::verifyFileOwner(dbConn, fileID, agentAddress);
     
     unsigned char* data = command->data();
     unsigned short dataSize = command->dataSize();
     
-    try {
-        database::updateFileByID(dbConn, fileID, data, dataSize);
-    }
-    catch (database::NoRowFoundException &e) {
-        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(fileID), 0, true);
-        throw NetvendCommandException(error);
-    }
+    database::updateFileByID(dbConn, fileID, data, dataSize);
     
     boost::shared_ptr<commands::results::UpdateFileByID> ucbiResult(
       new commands::results::UpdateFileByID(0)
@@ -167,7 +126,7 @@ boost::shared_ptr<commands::results::ReadFileByID> processReadFileByIDCommand(st
         fileData = database::readFileByID(dbConn, fileID);
     }
     catch (database::NoRowFoundException &e) {
-        commands::errors::Error* error = new commands::errors::InvalidTarget(boost::lexical_cast<std::string>(fileID), 0, true);
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(boost::lexical_cast<std::string>(fileID), 0, true);
         throw NetvendCommandException(error);
     }
     
@@ -402,11 +361,13 @@ void loadConfigVars() {
 }
 
 int main() {
+    std::cout << "Loading config... ";
     loadConfigVars();
+    std::cout << "Done." << std::endl;
     
-    std::cout << "store byte fee: " << config.get<float>("fees.store-byte") << std::endl;
-    
+    std::cout << "Preparing database connection... ";
     database::prepareConnection(&dbConn);
+    std::cout << "Done." << std::endl;
     
     try {
         boost::asio::io_service io;

@@ -282,12 +282,12 @@ namespace results {
     }
 
     Result* Result::consumeFromBuf(unsigned char** ptrPtr, unsigned char commandType) {
-        unsigned char error;
+        unsigned char errorType;
         unsigned long cost;
-        *ptrPtr += unpack(*ptrPtr, "CL", &error, &cost);
+        *ptrPtr += unpack(*ptrPtr, "CL", &errorType, &cost);
         
-        if (error) {
-            return errors::Error::consumeFromBuf(error, cost, ptrPtr);
+        if (errorType) {
+            return errors::Error::consumeFromBuf(errorType, cost, ptrPtr);
         }
         
         else if (commandType == commands::COMMANDTYPECHAR_CREATE_POCKET) {
@@ -451,7 +451,8 @@ namespace results {
         unsigned long place = vch->size();
         
         vch->resize(place + DATA_SIZE);
-        place += pack(vch->data() + place, "L", fileID_);
+        place += pack(vch->data()+place, "L", fileID_);
+        
         assert(place == vch->size());
     }
     
@@ -523,8 +524,8 @@ namespace results {
 
 namespace errors {
 
-    Error::Error(unsigned char error, unsigned long cost, bool fatalToBatch)
-    : results::Result(error, cost), std::runtime_error("Netvend agent command error"), fatalToBatch_(fatalToBatch)
+    Error::Error(unsigned char errorType, unsigned long cost, bool fatalToBatch)
+    : results::Result(errorType, cost), std::runtime_error("Netvend agent command error"), fatalToBatch_(fatalToBatch)
     {
         what_ = "what_ member not set";
     }
@@ -542,18 +543,27 @@ namespace errors {
         assert(place == vch->size());
     }
     
-    Error* Error::consumeFromBuf(unsigned char error, unsigned long cost, unsigned char **ptrPtr) {
+    Error* Error::consumeFromBuf(unsigned char errorType, unsigned long cost, unsigned char **ptrPtr) {
         bool fatalToBatch;
         *ptrPtr += unpack(*ptrPtr, "B", &fatalToBatch);
         
-        if (error == ERRORTYPECHAR_INVALID_TARGET) {
-            return InvalidTarget::consumeFromBuf(cost, fatalToBatch, ptrPtr);
+        if (errorType == ERRORTYPECHAR_SERVER_LOGIC) {
+            return ServerLogicError::consumeFromBuf(cost, fatalToBatch, ptrPtr);
         }
-        else if (error == ERRORTYPECHAR_TARGET_NOT_OWNED) {
-            return TargetNotOwned::consumeFromBuf(cost, fatalToBatch, ptrPtr);
+        else if (errorType == ERRORTYPECHAR_INVALID_TARGET) {
+            return InvalidTargetError::consumeFromBuf(cost, fatalToBatch, ptrPtr);
+        }
+        else if (errorType == ERRORTYPECHAR_TARGET_NOT_OWNED) {
+            return TargetNotOwnedError::consumeFromBuf(cost, fatalToBatch, ptrPtr);
+        }
+        else if (errorType == ERRORTYPECHAR_CREDIT_INSUFFICIENT) {
+            return CreditInsufficientError::consumeFromBuf(cost, fatalToBatch, ptrPtr);
+        }
+        else if (errorType == ERRORTYPECHAR_CREDIT_OVERFLOW) {
+            return CreditOverflowError::consumeFromBuf(cost, fatalToBatch, ptrPtr);
         }
         else {
-            throw std::runtime_error("bad response; errorTypeChar " +  boost::lexical_cast<std::string>(error) + " unrecognized.");
+            throw std::runtime_error("bad response; errorTypeChar " +  boost::lexical_cast<std::string>(errorType) + " unrecognized.");
         }
         return NULL;
     }
@@ -568,17 +578,61 @@ namespace errors {
     
     
     
-    InvalidTarget::InvalidTarget(std::string target, unsigned long cost, bool fatalToBatch)
+    ServerLogicError::ServerLogicError(std::string errorString, unsigned long cost, bool fatalToBatch)
+    : Error(ERRORTYPECHAR_SERVER_LOGIC, cost, fatalToBatch), errorString_(errorString)
+    {
+        setWhat();
+    }
+    
+    void ServerLogicError::setWhat() {
+        what_ = std::string("Server logic error: ") + errorString_;
+    }
+    
+    void ServerLogicError::writeToVch(std::vector<unsigned char>* vch) {
+        Error::writeToVch(vch);
+        
+        unsigned char errorStringSize = errorString_.size();
+        const size_t DATA_SIZE = PACK_C_SIZE + errorStringSize;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        place += pack(vch->data()+place, "C", errorStringSize);
+        std::copy(errorString_.begin(), errorString_.end(), vch->begin()+place);
+        place += errorStringSize;
+        
+        assert(place == vch->size());
+    }
+    
+    ServerLogicError* ServerLogicError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+        unsigned char errorStringSize;
+        *ptrPtr += unpack(*ptrPtr, "C", &errorStringSize);
+        
+        std::string errorString;
+        errorString.resize(errorStringSize);
+        std::copy_n(*ptrPtr, errorStringSize, errorString.begin());
+        *ptrPtr += errorStringSize;
+        
+        return new ServerLogicError(errorString, cost, fatalToBatch);
+    }
+    
+    std::string ServerLogicError::errorString() {
+        return errorString_;
+    }
+    
+    
+    
+    InvalidTargetError::InvalidTargetError(std::string target, unsigned long cost, bool fatalToBatch)
     : Error(ERRORTYPECHAR_INVALID_TARGET, cost, fatalToBatch), target_(target)
     {
         setWhat();
     }
     
-    void InvalidTarget::setWhat() {
+    void InvalidTargetError::setWhat() {
         what_ = std::string("Invalid target '") + target_ + std::string("'");
     }
     
-    void InvalidTarget::writeToVch(std::vector<unsigned char>* vch) {
+    void InvalidTargetError::writeToVch(std::vector<unsigned char>* vch) {
         Error::writeToVch(vch);
         
         unsigned char targetSize = target_.size();
@@ -589,11 +643,12 @@ namespace errors {
         vch->resize(place + DATA_SIZE);
         place += pack(vch->data()+place, "C", targetSize);
         std::copy(target_.begin(), target_.end(), vch->begin()+place);
+        place += targetSize;
         
-        assert(place+targetSize == vch->size());
+        assert(place == vch->size());
     }
     
-    InvalidTarget* InvalidTarget::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+    InvalidTargetError* InvalidTargetError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
         unsigned char targetSize;
         *ptrPtr += unpack(*ptrPtr, "C", &targetSize);
         
@@ -602,26 +657,26 @@ namespace errors {
         std::copy_n(*ptrPtr, targetSize, target.begin());
         *ptrPtr += targetSize;
         
-        return new InvalidTarget(target, cost, fatalToBatch);
+        return new InvalidTargetError(target, cost, fatalToBatch);
     }
     
-    std::string InvalidTarget::target() {
+    std::string InvalidTargetError::target() {
         return target_;
     }
     
     
     
-    TargetNotOwned::TargetNotOwned(std::string target, unsigned long cost, bool fatalToBatch)
+    TargetNotOwnedError::TargetNotOwnedError(std::string target, unsigned long cost, bool fatalToBatch)
     : Error(ERRORTYPECHAR_TARGET_NOT_OWNED, cost, fatalToBatch), target_(target)
     {
         setWhat();
     }
     
-    void TargetNotOwned::setWhat() {
+    void TargetNotOwnedError::setWhat() {
         what_ = std::string("Target '") + target_ + std::string("' is not owned by this agent.");
     }
     
-    void TargetNotOwned::writeToVch(std::vector<unsigned char>* vch) {
+    void TargetNotOwnedError::writeToVch(std::vector<unsigned char>* vch) {
         Error::writeToVch(vch);
         
         unsigned char targetSize = target_.size();
@@ -636,7 +691,7 @@ namespace errors {
         assert(place+targetSize == vch->size());
     }
     
-    TargetNotOwned* TargetNotOwned::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+    TargetNotOwnedError* TargetNotOwnedError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
         unsigned char targetSize;
         *ptrPtr += unpack(*ptrPtr, "C", &targetSize);
         
@@ -645,11 +700,101 @@ namespace errors {
         std::copy_n(*ptrPtr, targetSize, target.begin());
         *ptrPtr += targetSize;
         
-        return new TargetNotOwned(target, cost, fatalToBatch);
+        return new TargetNotOwnedError(target, cost, fatalToBatch);
     }
     
-    std::string TargetNotOwned::target() {
+    std::string TargetNotOwnedError::target() {
         return target_;
+    }
+    
+    
+    
+    CreditInsufficientError::CreditInsufficientError(unsigned long requiredCredit, unsigned long availableCredit, unsigned long cost, bool fatalToBatch)
+    : Error(ERRORTYPECHAR_CREDIT_INSUFFICIENT, cost, fatalToBatch), requiredCredit_(requiredCredit), availableCredit_(availableCredit)
+    {
+        setWhat();
+    }
+    
+    void CreditInsufficientError::setWhat() {
+        what_ = std::string("Insufficient funds. Need ") + boost::lexical_cast<std::string>(requiredCredit_) + std::string("; only ") + boost::lexical_cast<std::string>(availableCredit_) + std::string(" in pocket.");
+    }
+    
+    void CreditInsufficientError::writeToVch(std::vector<unsigned char>* vch) {
+        Error::writeToVch(vch);
+        
+        static const size_t DATA_SIZE = PACK_L_SIZE + PACK_L_SIZE;
+        
+        unsigned long place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        place += pack(vch->data()+place, "LL", requiredCredit_, availableCredit_);
+        
+        assert(place == vch->size());
+    }
+    
+    errors::CreditInsufficientError* CreditInsufficientError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+        unsigned long requiredCredit, availableCredit;
+        
+        *ptrPtr += unpack(*ptrPtr, "LL", &requiredCredit, &availableCredit);
+        
+        return new errors::CreditInsufficientError(requiredCredit, availableCredit, cost, fatalToBatch);
+    }
+    
+    unsigned long CreditInsufficientError::requiredCredit() {
+        return requiredCredit_;
+    }
+    
+    unsigned long CreditInsufficientError::availableCredit() {
+        return availableCredit_;
+    }
+    
+    unsigned long CreditInsufficientError::creditMissing() {
+        return requiredCredit_ - availableCredit_;
+    }
+    
+    
+    
+    CreditOverflowError::CreditOverflowError(unsigned long pocketCredit, unsigned long addedCredit, unsigned long cost, bool fatalToBatch)
+    : Error(ERRORTYPECHAR_CREDIT_OVERFLOW, cost, fatalToBatch), pocketCredit_(pocketCredit), addedCredit_(addedCredit)
+    {
+        setWhat();
+    }
+    
+    void CreditOverflowError::setWhat() {
+        what_ = std::string("Pocket credit overflow. Pocket has ") + boost::lexical_cast<std::string>(pocketCredit_) + std::string("credit; not enough room for ") + boost::lexical_cast<std::string>(addedCredit_) + std::string(" more.");
+    }
+    
+    void CreditOverflowError::writeToVch(std::vector<unsigned char>* vch) {
+        Error::writeToVch(vch);
+        
+        static const size_t DATA_SIZE = PACK_L_SIZE + PACK_L_SIZE;
+        
+        unsigned long place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        place += pack(vch->data()+place, "LL", pocketCredit_, addedCredit_);
+        
+        assert(place == vch->size());
+    }
+    
+    errors::CreditOverflowError* CreditOverflowError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+        unsigned long pocketCredit, addedCredit;
+        
+        *ptrPtr += unpack(*ptrPtr, "LL", &pocketCredit, &addedCredit);
+        
+        return new errors::CreditOverflowError(pocketCredit, addedCredit, cost, fatalToBatch);
+    }
+    
+    unsigned long CreditOverflowError::pocketCredit() {
+        return pocketCredit_;
+    }
+    
+    unsigned long CreditOverflowError::addedCredit() {
+        return addedCredit_;
+    }
+    
+    unsigned long long CreditOverflowError::totalCredit() {
+        return (unsigned long long)pocketCredit_ + (unsigned long long)addedCredit_;
     }
     
 }//namespace commands::errors

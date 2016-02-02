@@ -9,11 +9,11 @@ DuplicateUniqueValueException::DuplicateUniqueValueException() : runtime_error("
 {}
 
 void prepareConnection(pqxx::connection **dbConn) {
-    std::cout << "connecting to database..." << std::endl;
+    //std::cout << "connecting to database..." << std::endl;
     (*dbConn) = new pqxx::connection("dbname=netvend user=netvend password=badpass");
-    std::cout << "connected." << std::endl;
+    //std::cout << "connected." << std::endl;
     
-    std::cout << "peparing queries..." << std::endl;
+    //std::cout << "peparing queries..." << std::endl;
     
     (*dbConn)->prepare(FETCH_FILE_FEES_SUPPORTED_PER_POCKET, "SELECT "
                                                                 "sub.pocket AS pocket_id, "
@@ -45,7 +45,7 @@ void prepareConnection(pqxx::connection **dbConn) {
     (*dbConn)->prepare(UPDATE_FILE_BY_ID, "UPDATE files SET data = $2 WHERE file_id = $1");
     (*dbConn)->prepare(READ_FILE_BY_ID, "SELECT data FROM files WHERE file_id = $1");
     
-    std::cout << "queries prepared." << std::endl;
+    //std::cout << "queries prepared." << std::endl;
 }
 
 bool agentRowExists(pqxx::connection *dbConn, std::string agentAddress) {
@@ -55,8 +55,7 @@ bool agentRowExists(pqxx::connection *dbConn, std::string agentAddress) {
     result = tx.prepared(CHECK_AGENT_EXISTS)(agentAddress).exec();
     tx.commit();
     
-    bool exists;
-    result[0][0].to(exists);
+    bool exists; result[0][0].to(exists);
     
     return exists;
 }
@@ -72,7 +71,8 @@ void insertAgent(pqxx::connection *dbConn, std::string agentAddress, std::vector
         tx.commit();
     }
     catch (pqxx::unique_violation& e) {
-        throw e;// DuplicateUniqueValueException();
+        commands::errors::Error* error = new commands::errors::ServerLogicError("Agent with that address already exists", 0, true);
+        throw NetvendCommandException(error);
     }
 }
 
@@ -82,7 +82,8 @@ crypto::RSAPubkey fetchAgentPubkey(pqxx::connection *dbConn, std::string agentAd
     tx.commit();
     
     if (result.size() == 0) {
-        throw NoRowFoundException();
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("agent ") + agentAddress, 0, true);
+        throw NetvendCommandException(error);
     }
     pqxx::binarystring pubkeyBlob(result[0][0]);
     
@@ -105,12 +106,13 @@ unsigned long insertPocket(pqxx::connection *dbConn, std::string ownerAddress, s
         else {
             result = tx.prepared(INSERT_POCKET_WITHOUT_OWNER).exec();
         }
-        
-        tx.commit();
     }
     catch (pqxx::unique_violation& e) {
-        throw e;
+        commands::errors::Error* error = new commands::errors::ServerLogicError("Pocket with that id already exists", 0, true);
+        throw NetvendCommandException(error);
     }
+    
+    tx.commit();
     
     unsigned long pocketID;
     result[0][0].to(pocketID);
@@ -131,32 +133,44 @@ std::string fetchPocketOwner(pqxx::connection *dbConn, unsigned long pocketID) {
     pqxx::result result = tx.prepared(FETCH_POCKET_OWNER)(pocketID).exec();
     
     if (result.size() == 0) {
-        throw NoRowFoundException();
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("p:") + boost::lexical_cast<std::string>(pocketID), 0, true);
+        throw NetvendCommandException(error);
     }
     
-    std::string owner;
-    result[0][0].to(owner);
+    std::string owner; result[0][0].to(owner);
     return owner;
+}
+
+void verifyPocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string agentAddress) {
+    if (fetchPocketOwner(dbConn, pocketID) != agentAddress) {
+        commands::errors::Error* error = new commands::errors::TargetNotOwnedError(std::string("p:") + boost::lexical_cast<std::string>(pocketID), 0, true);
+        throw NetvendCommandException(error);
+    }
 }
 
 void updatePocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string newOwnerAddress) {
     pqxx::work tx(*dbConn, "UpdatePocketOwnerWork");
     
-    tx.prepared(UPDATE_POCKET_OWNER)(pocketID)(newOwnerAddress).exec();
-    
-    tx.commit();
-}
-
-void updatePocketDepositAddress(pqxx::connection *dbConn, std::string ownerAddress, unsigned long pocketID, std::string newDepositAddress) {
-    pqxx::work tx(*dbConn, "UpdatePocketDepositAddressWork");
-    pqxx::result result;
-    
-    result = tx.prepared(UPDATE_POCKET_DEPOSIT_ADDRESS)(ownerAddress)(pocketID)(newDepositAddress).exec();
+    pqxx::result result = tx.prepared(UPDATE_POCKET_OWNER)(pocketID)(newOwnerAddress).exec();
     
     tx.commit();
     
     if (result.affected_rows() == 0) {
-        throw NoRowFoundException();
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("p:") + boost::lexical_cast<std::string>(pocketID), 0, true);
+        throw NetvendCommandException(error);
+    }
+}
+
+void updatePocketDepositAddress(pqxx::connection *dbConn, std::string ownerAddress, unsigned long pocketID, std::string newDepositAddress) {
+    pqxx::work tx(*dbConn, "UpdatePocketDepositAddressWork");
+    
+    pqxx::result result = tx.prepared(UPDATE_POCKET_DEPOSIT_ADDRESS)(ownerAddress)(pocketID)(newDepositAddress).exec();
+    
+    tx.commit();
+    
+    if (result.affected_rows() == 0) {
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("p:") + boost::lexical_cast<std::string>(pocketID), 0, true);
+        throw NetvendCommandException(error);
     }
 }
 
@@ -166,22 +180,29 @@ unsigned long insertFile(pqxx::connection *dbConn, std::string ownerAddress, std
     pqxx::work tx(*dbConn, "InsertFileWork");
     pqxx::result result;
     
-    result = tx.prepared(INSERT_FILE)(ownerAddress)(name)(pocketID).exec();
+    try {
+        result = tx.prepared(INSERT_FILE)(ownerAddress)(name)(pocketID).exec();
+    }
+    catch (pqxx::unique_violation& e) {
+        commands::errors::Error* error = new commands::errors::ServerLogicError("File with that owner and name already exists", 0, true);
+        throw NetvendCommandException(error);
+    }
     
     tx.commit();
     
-    unsigned long chunkID;
-    result[0][0].to(chunkID);
-    return chunkID;
+    unsigned long fileID;
+    result[0][0].to(fileID);
+    return fileID;
 }
 
-std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long chunkID) {
+std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long fileID) {
     pqxx::work tx(*dbConn, "FetchFileOwnerWork");
     
-    pqxx::result result = tx.prepared(FETCH_FILE_OWNER)(chunkID).exec();
+    pqxx::result result = tx.prepared(FETCH_FILE_OWNER)(fileID).exec();
     
     if (result.size() == 0) {
-        throw NoRowFoundException();
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("f:") + boost::lexical_cast<std::string>(fileID), 0, true);
+        throw NetvendCommandException(error);
     }
     
     std::string owner;
@@ -189,28 +210,37 @@ std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long chunkID) {
     return owner;
 }
 
-void updateFileByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize) {
+void verifyFileOwner(pqxx::connection *dbConn, unsigned long fileID, std::string agentAddress) {
+    if (fetchFileOwner(dbConn, fileID) != agentAddress) {
+        commands::errors::Error* error = new commands::errors::TargetNotOwnedError(std::string("f:") + boost::lexical_cast<std::string>(fileID), 0, true);
+        throw NetvendCommandException(error);
+    }
+}
+
+void updateFileByID(pqxx::connection *dbConn, unsigned long fileID, unsigned char* data, unsigned short dataSize) {
     pqxx::work tx(*dbConn, "UpdateFileByIDWork");
     pqxx::result result;
     
     pqxx::binarystring dataBlob(data, dataSize);
     
-    result = tx.prepared(UPDATE_FILE_BY_ID)(chunkID)(dataBlob).exec();
+    result = tx.prepared(UPDATE_FILE_BY_ID)(fileID)(dataBlob).exec();
     
     tx.commit();
     
     if (result.affected_rows() == 0) {
-        throw NoRowFoundException();
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("f:") + boost::lexical_cast<std::string>(fileID), 0, true);
+        throw NetvendCommandException(error);
     }
 }
 
-std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long chunkID) {
+std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long fileID) {
     pqxx::work tx(*dbConn, "ReadFileByIDWork");
-    pqxx::result result = tx.prepared(READ_FILE_BY_ID)(chunkID).exec();
+    pqxx::result result = tx.prepared(READ_FILE_BY_ID)(fileID).exec();
     tx.commit();
     
     if (result.size() == 0) {
-        throw NoRowFoundException();
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("f:") + boost::lexical_cast<std::string>(fileID), 0, true);
+        throw NetvendCommandException(error);
     }
     pqxx::binarystring fileDataBlob(result[0][0]);
     
@@ -265,12 +295,12 @@ void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerFile, int credi
     pqxx::work tx(*dbConn, "DeductFeesAndDeleteFilesWork");
     //run the delete query
     if (!bankruptListEmpty) {
-        std::cout << "running delete files query:" << std::endl << removeFilesQuery << std::endl << std::endl;
+        //std::cout << "running delete files query:" << std::endl << removeFilesQuery << std::endl << std::endl;
         tx.exec(removeFilesQuery);
     }
     //run the deduct query
     if (!chargeListEmpty) {
-        std::cout << "running charge pockets query:" << std::endl << deductPocketsQuery << std::endl << std::endl;
+        //std::cout << "running charge pockets query:" << std::endl << deductPocketsQuery << std::endl << std::endl;
         tx.exec(deductPocketsQuery);
     }
     

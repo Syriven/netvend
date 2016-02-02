@@ -7,6 +7,8 @@
 
 #include "database.h"
 #include "crypto.h"
+#include "netvend/exception.h"
+#include "netvend/commands.h"
 
 namespace database {
 
@@ -49,13 +51,15 @@ unsigned long insertPocket(pqxx::connection *dbConn, std::string ownerAddress, s
 unsigned long insertPocket(pqxx::connection *dbConn, std::string ownerAddress);
 unsigned long insertPocket(pqxx::connection *dbConn);
 std::string fetchPocketOwner(pqxx::connection *dbConn, unsigned long pocketID);
+void verifyPocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string agentAddress);
 void updatePocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string newOwnerAddress);
 void updatePocketDepositAddress(pqxx::connection* dbConn, std::string ownerAddress, unsigned long pocketID, std::string newDepositAddress);
 
 unsigned long insertFile(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID);
-std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long chunkID);
-void updateFileByID(pqxx::connection *dbConn, unsigned long chunkID, unsigned char* data, unsigned short dataSize);
-std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long chunkID);
+std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long fileID);
+void verifyFileOwner(pqxx::connection *dbConn, unsigned long fileID, std::string agentAddress);
+void updateFileByID(pqxx::connection *dbConn, unsigned long fileID, unsigned char* data, unsigned short dataSize);
+std::vector<unsigned char> readFileByID(pqxx::connection *dbConn, unsigned long fileID);
 
 void chargeFileUpkeepFees(pqxx::connection *dbConn, int creditPerFile, int creditPerByte);
 

@@ -1,3 +1,6 @@
+#ifndef NETVEND_NV_EXCEPTION_H
+#define NETVEND_NV_EXCEPTION_H
+
 #include <stdexcept>
 #include <string>
 #include <boost/shared_ptr.hpp>
@@ -11,3 +14,5 @@ public:
     boost::shared_ptr<commands::errors::Error> commandError();
     virtual ~NetvendCommandException();
 };
+
+#endif
