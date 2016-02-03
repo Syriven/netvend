@@ -197,6 +197,19 @@ public:
         return rpdaResult->depositAddress();
     }
     
+    bool transfer(unsigned long fromPocketID, unsigned long toPocketID, unsigned long amount) {
+        boost::shared_ptr<commands::Command> command(new commands::PocketTransfer(fromPocketID, toPocketID, amount));
+        
+        boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
+        
+        boost::shared_ptr<commands::results::PocketTransfer> ptResult = 
+          boost::dynamic_pointer_cast<commands::results::PocketTransfer>(result);
+        
+        assert(ptResult.get() != NULL);
+        
+        return true;
+    }
+    
     unsigned long createFile(std::string name, unsigned long pocketID) {
         boost::shared_ptr<commands::Command> command(new commands::CreateFile(name, pocketID));
         
@@ -249,6 +262,7 @@ agent [name] - select agent\n\
 \n\
 h - Perform netvend handshake\n\
 newpocket - Create new Pocket\n\
+transfer [fromPocketID] [toPocketID] [amount] - Transfer credit from one pocket to another\n\
 pocketdeposit [pocketID] - Request deposit address for pocket\n\
 newfile [name] [pocketID] - Create a new file with [name], thethered to pocket [pocketID]\n\
 write [fileID] [data] - write to file [fileID] with [data] (overwrites old data)";
@@ -332,6 +346,16 @@ int main() {
             std::cin >> pocketID;
             
             std::cout << "Pocket " << pocketID << " now has a deposit address " << selectedAgent->requestPocketDepositAddress(pocketID) << std::endl;
+        }
+        else if (commandCode == "transfer") {
+            unsigned long fromPocketID, toPocketID;
+            unsigned long amount;
+            
+            std::cin >> fromPocketID >> toPocketID >> amount;
+            
+            selectedAgent->transfer(fromPocketID, toPocketID, amount);
+            
+            std::cout << "Transfered." << std::endl;
         }
         else if (commandCode == "newfile") {
             std::string name;

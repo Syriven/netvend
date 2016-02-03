@@ -39,6 +39,9 @@ void prepareConnection(pqxx::connection **dbConn) {
     (*dbConn)->prepare(FETCH_POCKET_OWNER, "SELECT owner FROM pockets WHERE pocket_id = $1"); 
     (*dbConn)->prepare(UPDATE_POCKET_OWNER, "UPDATE pockets SET owner = $2 WHERE pocket_id = $1");
     (*dbConn)->prepare(UPDATE_POCKET_DEPOSIT_ADDRESS, "UPDATE pockets SET deposit_address = $3 WHERE owner = $1 AND pocket_id = $2");
+    (*dbConn)->prepare(FETCH_POCKET_BALANCE, "SELECT amount FROM pockets WHERE pocket_id = $1");
+    (*dbConn)->prepare(DEDUCT_FROM_POCKET_WITH_OWNER, "UPDATE pockets SET amount = amount - $3 WHERE owner = $2 AND pocket_id = $1 AND amount - $3 >= 0");
+    (*dbConn)->prepare(ADD_TO_POCKET, "UPDATE pockets SET amount = amount + $2 WHERE pocket_id = $1");
     
     (*dbConn)->prepare(INSERT_FILE, "INSERT INTO files (owner, name, pocket) VALUES ($1, $2, $3) RETURNING file_id");
     (*dbConn)->prepare(FETCH_FILE_OWNER, "SELECT owner FROM files WHERE file_id = $1");
@@ -172,6 +175,53 @@ void updatePocketDepositAddress(pqxx::connection *dbConn, std::string ownerAddre
         commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("p:") + boost::lexical_cast<std::string>(pocketID), 0, true);
         throw NetvendCommandException(error);
     }
+}
+
+void pocketTransfer(pqxx::connection *dbConn, std::string fromOwnerAddress, unsigned long fromPocketID, unsigned long toPocketID, signed long long amount) {
+    pqxx::work tx(*dbConn, "PocketTransferWork");
+    pqxx::result result;
+    
+    //first try to deduct from the sender
+    result = tx.prepared(DEDUCT_FROM_POCKET_WITH_OWNER)(fromPocketID)(fromOwnerAddress)(amount).exec();
+    
+    if (result.affected_rows() == 0) {
+        //something went wrong. Lets find out what!
+        pqxx::result ownerResult = tx.prepared(FETCH_POCKET_OWNER)(fromPocketID).exec();
+        if (ownerResult.size() == 0) {
+            //no pocket with this pocket_id.
+            commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("p:") + boost::lexical_cast<std::string>(fromPocketID), 0, true);
+            throw NetvendCommandException(error);
+        }
+        else if (ownerResult[0][0].as<std::string>() != fromOwnerAddress) {
+            //Pocket not owned by this agent.
+            commands::errors::Error* error = new commands::errors::TargetNotOwnedError(std::string("p:") + boost::lexical_cast<std::string>(fromPocketID), 0, true);
+            throw NetvendCommandException(error);
+        }
+        else {
+            //Only possibility left should be that pocket can't support transfer.
+            pqxx::result balanceResult = tx.prepared(FETCH_POCKET_BALANCE)(fromPocketID).exec();
+            signed long long balance = balanceResult[0][0].as<signed long long>();
+            if (balance - amount < 0) {
+                commands::errors::Error* error = new commands::errors::CreditInsufficientError(amount, balance, 0, true);
+                throw NetvendCommandException(error);
+            }
+            else {
+                //weird! use ServerLogicError as a catchall.
+                commands::errors::Error* error = new commands::errors::ServerLogicError(std::string("Transfer from pocket ") + boost::lexical_cast<std::string>(fromPocketID) + std::string(" failed for an unkown reason"), 0, true);
+                throw NetvendCommandException(error);
+            }
+        }
+    }
+    
+    result = tx.prepared(ADD_TO_POCKET)(toPocketID)(amount).exec();
+    
+    if (result.affected_rows() == 0) {
+        //no pocket with this pocket_id
+        commands::errors::Error* error = new commands::errors::InvalidTargetError(std::string("p:") + boost::lexical_cast<std::string>(toPocketID), 0, true);
+        throw NetvendCommandException(error);
+    }
+    
+    tx.commit();
 }
 
 

@@ -26,6 +26,9 @@ namespace commands {
         if (typeChar == COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS) {
             return commands::RequestPocketDepositAddress::consumeFromBuf(ptrPtr);
         }
+        if (typeChar == COMMANDTYPECHAR_POCKET_TRANSFER) {
+            return commands::PocketTransfer::consumeFromBuf(ptrPtr);
+        }
         if (typeChar == COMMANDTYPECHAR_CREATE_FILE) {
             return commands::CreateFile::consumeFromBuf(ptrPtr);
         }
@@ -134,6 +137,45 @@ namespace commands {
     
     unsigned long RequestPocketDepositAddress::pocketID() {
         return pocketID_;
+    }
+    
+    
+    
+    PocketTransfer::PocketTransfer(unsigned long fromPocketID, unsigned long toPocketID, unsigned long amount)
+    : Command(COMMANDTYPECHAR_POCKET_TRANSFER), fromPocketID_(fromPocketID), toPocketID_(toPocketID), amount_(amount)
+    {}
+    
+    void PocketTransfer::writeToVch(std::vector<unsigned char>* vch) {
+        Command::writeToVch(vch);
+        
+        static const size_t DATA_SIZE = PACK_L_SIZE*3;
+        
+        unsigned int place = vch->size();
+        
+        vch->resize(place + DATA_SIZE);
+        place += pack(vch->data()+place, "LLL", fromPocketID_, toPocketID_, amount_);
+        assert(place == vch->size());
+    }
+    
+    commands::PocketTransfer* PocketTransfer::consumeFromBuf(unsigned char **ptrPtr) {
+        unsigned long fromPocketID, toPocketID, amount;
+        *ptrPtr += unpack(*ptrPtr, "LLL", &fromPocketID, &toPocketID, &amount);
+        
+        commands::PocketTransfer* command = new PocketTransfer(fromPocketID, toPocketID, amount);
+        
+        return command;
+    }
+    
+    unsigned long PocketTransfer::fromPocketID() {
+        return fromPocketID_;
+    }
+    
+    unsigned long PocketTransfer::toPocketID() {
+        return toPocketID_;
+    }
+    
+    unsigned long PocketTransfer::amount() {
+        return amount_;
     }
     
     
@@ -296,6 +338,9 @@ namespace results {
         else if (commandType == commands::COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS) {
             return results::RequestPocketDepositAddress::consumeFromBuf(cost, ptrPtr);
         }
+        else if (commandType == commands::COMMANDTYPECHAR_POCKET_TRANSFER) {
+            return results::PocketTransfer::consumeFromBuf(cost, ptrPtr);
+        }
         else if (commandType == commands::COMMANDTYPECHAR_CREATE_FILE) {
             return results::CreateFile::consumeFromBuf(cost, ptrPtr);
         }
@@ -435,6 +480,20 @@ namespace results {
     
     std::string RequestPocketDepositAddress::depositAddress() {
         return depositAddress_;
+    }
+    
+    
+    
+    PocketTransfer::PocketTransfer(unsigned long cost)
+    : Result(errors::ERRORTYPECHAR_NONE, cost)
+    {}
+    
+    void PocketTransfer::writeToVch(std::vector<unsigned char>* vch) {
+        Result::writeToVch(vch);
+    }
+    
+    results::PocketTransfer* PocketTransfer::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+        return new results::PocketTransfer(cost);
     }
     
     

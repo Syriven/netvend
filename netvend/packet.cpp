@@ -18,7 +18,6 @@ NetvendPacket* NetvendPacket::readFromSocket(boost::asio::ip::tcp::socket& socke
         return HandshakePacket::readFromSocket(socket);
     }
     else if (typeChar == PACKETTYPECHAR_COMMANDBATCH) {
-        std::cout << "1" << std::endl;
         return CommandBatchPacket::readFromSocket(socket);
     }
     return NULL;
@@ -93,7 +92,6 @@ CommandBatchPacket* CommandBatchPacket::readFromSocket(boost::asio::ip::tcp::soc
     networking::readToBufOrThrow(socket, addrbuf, MAX_ADDRESS_SIZE);
     
     std::string agentAddress((char*)addrbuf);
-    std::cout << agentAddress << std::endl;
     
     unsigned char cbsbuf[2];
     networking::readToBufOrThrow(socket, cbsbuf, 2);

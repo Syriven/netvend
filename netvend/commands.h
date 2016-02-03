@@ -17,9 +17,10 @@ namespace commands {
     
     const char COMMANDTYPECHAR_CREATE_POCKET = 0;
     const char COMMANDTYPECHAR_REQUEST_POCKET_DEPOSIT_ADDRESS = 1;
-    const char COMMANDTYPECHAR_CREATE_FILE = 2;
-    const char COMMANDTYPECHAR_UPDATE_FILE_BY_ID = 3;
-    const char COMMANDTYPECHAR_READ_FILE_BY_ID = 4;
+    const char COMMANDTYPECHAR_POCKET_TRANSFER = 2;
+    const char COMMANDTYPECHAR_CREATE_FILE = 3;
+    const char COMMANDTYPECHAR_UPDATE_FILE_BY_ID = 4;
+    const char COMMANDTYPECHAR_READ_FILE_BY_ID = 5;
 
     class Command {
         unsigned char typeChar_;
@@ -54,6 +55,19 @@ namespace commands {
         void writeToVch(std::vector<unsigned char>* vch);
         static commands::RequestPocketDepositAddress* consumeFromBuf(unsigned char **ptrPtr);
         unsigned long pocketID();
+    };
+    
+    class PocketTransfer : public Command {
+        unsigned long fromPocketID_;
+        unsigned long toPocketID_;
+        unsigned long amount_;
+    public:
+        PocketTransfer(unsigned long fromPocketID, unsigned long toPocketID, unsigned long amount);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static commands::PocketTransfer* consumeFromBuf(unsigned char **ptrPtr);
+        unsigned long fromPocketID();
+        unsigned long toPocketID();
+        unsigned long amount();
     };
     
     class CreateFile : public Command {
@@ -134,6 +148,13 @@ namespace results {
         void writeToVch(std::vector<unsigned char>* vch);
         static results::RequestPocketDepositAddress* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
         std::string depositAddress();
+    };
+    
+    class PocketTransfer : public Result {
+    public:
+        PocketTransfer(unsigned long cost);
+        void writeToVch(std::vector<unsigned char>* vch);
+        static results::PocketTransfer* consumeFromBuf(unsigned long cost, unsigned char **ptrPtr);
     };
     
     class CreateFile : public Result {

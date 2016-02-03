@@ -40,7 +40,7 @@ networking::HandshakeResponse processHandshakePacket(boost::shared_ptr<networkin
         
         //first create a pocket.
         unsigned long defaultPocketID = database::insertPocket(dbConn);
-        std::cout << defaultPocketID << std::endl;
+        //std::cout << defaultPocketID << std::endl;
         
         //encode the public key
         std::vector<unsigned char> encodedPubkey = crypto::encodePubkey(pubkey);
@@ -83,6 +83,20 @@ boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequest
     );
     
     return rpdaResult;
+}
+
+boost::shared_ptr<commands::results::PocketTransfer> processPocketTransferCommand(std::string agentAddress, boost::shared_ptr<commands::PocketTransfer> command) {
+    unsigned long fromPocketID = command->fromPocketID();
+    unsigned long toPocketID = command->toPocketID();
+    unsigned long amount = command->amount();
+    
+    database::pocketTransfer(dbConn, agentAddress, fromPocketID, toPocketID, amount);
+    
+    boost::shared_ptr<commands::results::PocketTransfer> ptResult(
+      new commands::results::PocketTransfer(0)
+    );
+    
+    return ptResult;
 }
 
 boost::shared_ptr<commands::results::CreateFile> processCreateFileCommand(std::string agentAddress, boost::shared_ptr<commands::CreateFile> command) {
@@ -158,12 +172,22 @@ boost::shared_ptr<commands::results::Result> processCommand(std::string agentAdd
         
         return processRequestPocketDepositAddressCommand(agentAddress, rpdaCommand);
     }
+    else if (command->typeChar() == commands::COMMANDTYPECHAR_POCKET_TRANSFER) {
+        boost::shared_ptr<commands::PocketTransfer> ptCommand =
+          boost::dynamic_pointer_cast<commands::PocketTransfer>(command);
+        
+        if (ptCommand.get() == NULL) {
+            throw networking::NetvendDecodeException("Error decoding what seems to be a pocketTransfer command.");
+        }
+        
+        return processPocketTransferCommand(agentAddress, ptCommand);
+    }
     else if (command->typeChar() == commands::COMMANDTYPECHAR_CREATE_FILE) {
         boost::shared_ptr<commands::CreateFile> ccCommand = 
-        boost::dynamic_pointer_cast<commands::CreateFile>(command);
+          boost::dynamic_pointer_cast<commands::CreateFile>(command);
         
         if (ccCommand.get() == NULL) {
-            throw networking::NetvendDecodeException("Error decoding what seems to be an CreateFile command.");
+            throw networking::NetvendDecodeException("Error decoding what seems to be a CreateFile command.");
         }
         
         return processCreateFileCommand(agentAddress, ccCommand);
@@ -367,7 +391,7 @@ int main() {
     
     std::cout << "Preparing database connection... ";
     database::prepareConnection(&dbConn);
-    std::cout << "Done." << std::endl;
+    std::cout << "Done." << std::endl << std::endl;
     
     try {
         boost::asio::io_service io;

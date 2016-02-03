@@ -24,6 +24,9 @@ const std::string INSERT_POCKET_WITHOUT_OWNER = "InsertPocketWithoutOwner";
 const std::string FETCH_POCKET_OWNER = "FetchPocketOwner";
 const std::string UPDATE_POCKET_OWNER = "UpdatePocketOwner";
 const std::string UPDATE_POCKET_DEPOSIT_ADDRESS = "UpdatePocketDepositAddress";
+const std::string FETCH_POCKET_BALANCE = "FetchPocketBalance";
+const std::string DEDUCT_FROM_POCKET_WITH_OWNER = "DeductFromPocketWithOwner";
+const std::string ADD_TO_POCKET = "AddToPocket";
 
 const std::string INSERT_FILE = "InsertFile";
 const std::string FETCH_FILE_OWNER = "FetchFileOwner";
@@ -54,6 +57,7 @@ std::string fetchPocketOwner(pqxx::connection *dbConn, unsigned long pocketID);
 void verifyPocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string agentAddress);
 void updatePocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string newOwnerAddress);
 void updatePocketDepositAddress(pqxx::connection* dbConn, std::string ownerAddress, unsigned long pocketID, std::string newDepositAddress);
+void pocketTransfer(pqxx::connection *dbConn, std::string fromOwnerAddress, unsigned long fromPocketID, unsigned long toPocketID, signed long long amount);
 
 unsigned long insertFile(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID);
 std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long fileID);
