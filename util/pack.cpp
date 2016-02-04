@@ -247,7 +247,7 @@ unsigned int pack(unsigned char *buf, const char *format, ...)
                         h = va_arg(ap, int);
                         assert(h >= PACK_SH_MIN && h <= PACK_SH_MAX);
                         packi16(buf, h);
-                        buf += 2;
+                        buf += PACK_H_SIZE;
                         break;
 
                 case 'H': // 16-bit unsigned
@@ -255,7 +255,7 @@ unsigned int pack(unsigned char *buf, const char *format, ...)
                         H = va_arg(ap, unsigned int);
                         assert(H >= PACK_UH_MIN && H <= PACK_UH_MAX);
                         packi16(buf, H);
-                        buf += 2;
+                        buf += PACK_H_SIZE;
                         break;
 
                 case 'l': // 32-bit
@@ -263,7 +263,7 @@ unsigned int pack(unsigned char *buf, const char *format, ...)
                         l = va_arg(ap, long int);
                         assert(l >= PACK_SL_MIN && l <= PACK_SL_MAX);
                         packi32(buf, l);
-                        buf += 4;
+                        buf += PACK_L_SIZE;
                         break;
 
                 case 'L': // 32-bit unsigned
@@ -271,21 +271,23 @@ unsigned int pack(unsigned char *buf, const char *format, ...)
                         L = va_arg(ap, unsigned long int);
                         assert(L >= PACK_UL_MIN && L <= PACK_UL_MAX);
                         packi32(buf, L);
-                        buf += 4;
+                        buf += PACK_L_SIZE;
                         break;
 
                 case 'q': // 64-bit
-                        size += 8;
+                        size += PACK_Q_SIZE;
                         q = va_arg(ap, long long int);
+                        assert(q >= PACK_SQ_MIN && q <= PACK_SQ_MAX);
                         packi64(buf, q);
-                        buf += 8;
+                        buf += PACK_Q_SIZE;
                         break;
 
                 case 'Q': // 64-bit unsigned
-                        size += 8;
+                        size += PACK_Q_SIZE;
                         Q = va_arg(ap, unsigned long long int);
+                        assert(Q >= PACK_UQ_MIN && Q <= PACK_UQ_MAX);
                         packi64(buf, Q);
-                        buf += 8;
+                        buf += PACK_Q_SIZE;
                         break;
 
                 case 'f': // float-16
@@ -423,17 +425,17 @@ int unpack(unsigned char *buf, const char *format, ...)
                         break;
 
                 case 'q': // 64-bit
-                        size += 8;
+                        size += PACK_Q_SIZE;
                         q = va_arg(ap, long long int*);
                         *q = unpacki64(buf);
-                        buf += 8;
+                        buf += PACK_Q_SIZE;
                         break;
 
                 case 'Q': // 64-bit unsigned
-                        size += 8;
+                        size += PACK_Q_SIZE;
                         Q = va_arg(ap, unsigned long long int*);
                         *Q = unpacku64(buf);
-                        buf += 8;
+                        buf += PACK_Q_SIZE;
                         break;
 
                 case 'f': // float

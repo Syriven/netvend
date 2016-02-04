@@ -19,6 +19,7 @@ const unsigned int PACK_B_SIZE = 1;
 const unsigned int PACK_C_SIZE = 1;
 const unsigned int PACK_H_SIZE = 2;
 const unsigned int PACK_L_SIZE = 4;
+const unsigned int PACK_Q_SIZE = 8;
 
 const unsigned int PACK_UC_MIN = 0;
 const unsigned int PACK_UC_MAX = 255;
@@ -34,6 +35,11 @@ const unsigned int PACK_UL_MIN = 0;
 const unsigned int PACK_UL_MAX = 4294967295;
 const int PACK_SL_MIN = -2147483648;
 const int PACK_SL_MAX = 2147483648;
+
+const unsigned int PACK_UQ_MIN = 0;
+const unsigned int PACK_UQ_MAX = 18446744073709551615;
+const int PACK_SQ_MIN = -9223372036854775807;
+const int PACK_SQ_MAX = 9223372036854775807;
 
 /*
 ** pack754() -- pack a floating point number into IEEE-754 format
