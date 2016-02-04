@@ -21,25 +21,25 @@ const unsigned int PACK_H_SIZE = 2;
 const unsigned int PACK_L_SIZE = 4;
 const unsigned int PACK_Q_SIZE = 8;
 
-const unsigned int PACK_UC_MIN = 0;
-const unsigned int PACK_UC_MAX = 255;
-const int PACK_SC_MIN = -127;
-const int PACK_SC_MAX = 127;
+const unsigned char PACK_UC_MIN = 0;
+const unsigned char PACK_UC_MAX = 255;
+const char PACK_SC_MIN = -127;
+const char PACK_SC_MAX = 127;
 
-const unsigned int PACK_UH_MIN = 0;
-const unsigned int PACK_UH_MAX = 65535;
-const int PACK_SH_MIN = -32768;
-const int PACK_SH_MAX = 32768;
+const unsigned short PACK_UH_MIN = 0;
+const unsigned short PACK_UH_MAX = 65535;
+const short PACK_SH_MIN = -32768;
+const short PACK_SH_MAX = 32768;
 
-const unsigned int PACK_UL_MIN = 0;
-const unsigned int PACK_UL_MAX = 4294967295;
-const int PACK_SL_MIN = -2147483648;
-const int PACK_SL_MAX = 2147483648;
+const unsigned long PACK_UL_MIN = 0;
+const unsigned long PACK_UL_MAX = 4294967295;
+const long PACK_SL_MIN = -2147483648;
+const long PACK_SL_MAX = 2147483648;
 
-const unsigned int PACK_UQ_MIN = 0;
-const unsigned int PACK_UQ_MAX = 18446744073709551615;
-const int PACK_SQ_MIN = -9223372036854775807;
-const int PACK_SQ_MAX = 9223372036854775807;
+const unsigned long long PACK_UQ_MIN = 0;
+const unsigned long long PACK_UQ_MAX = 18446744073709551615;
+const long long PACK_SQ_MIN = -9223372036854775807;
+const long long PACK_SQ_MAX = 9223372036854775807;
 
 /*
 ** pack754() -- pack a floating point number into IEEE-754 format

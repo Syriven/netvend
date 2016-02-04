@@ -88,7 +88,7 @@ boost::shared_ptr<commands::results::RequestPocketDepositAddress> processRequest
 boost::shared_ptr<commands::results::PocketTransfer> processPocketTransferCommand(std::string agentAddress, boost::shared_ptr<commands::PocketTransfer> command) {
     unsigned long fromPocketID = command->fromPocketID();
     unsigned long toPocketID = command->toPocketID();
-    unsigned long amount = command->amount();
+    unsigned long long amount = command->amount();
     
     database::pocketTransfer(dbConn, agentAddress, fromPocketID, toPocketID, amount);
     

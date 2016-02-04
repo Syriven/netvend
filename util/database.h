@@ -57,7 +57,7 @@ std::string fetchPocketOwner(pqxx::connection *dbConn, unsigned long pocketID);
 void verifyPocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string agentAddress);
 void updatePocketOwner(pqxx::connection *dbConn, unsigned long pocketID, std::string newOwnerAddress);
 void updatePocketDepositAddress(pqxx::connection* dbConn, std::string ownerAddress, unsigned long pocketID, std::string newDepositAddress);
-void pocketTransfer(pqxx::connection *dbConn, std::string fromOwnerAddress, unsigned long fromPocketID, unsigned long toPocketID, signed long long amount);
+void pocketTransfer(pqxx::connection *dbConn, std::string fromOwnerAddress, unsigned long fromPocketID, unsigned long toPocketID, unsigned long long amount);
 
 unsigned long insertFile(pqxx::connection *dbConn, std::string ownerAddress, std::string name, unsigned long pocketID);
 std::string fetchFileOwner(pqxx::connection *dbConn, unsigned long fileID);

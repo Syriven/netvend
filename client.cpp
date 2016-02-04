@@ -197,7 +197,7 @@ public:
         return rpdaResult->depositAddress();
     }
     
-    bool transfer(unsigned long fromPocketID, unsigned long toPocketID, unsigned long amount) {
+    void transfer(unsigned long fromPocketID, unsigned long toPocketID, long long amount) {
         boost::shared_ptr<commands::Command> command(new commands::PocketTransfer(fromPocketID, toPocketID, amount));
         
         boost::shared_ptr<commands::results::Result> result = performSingleCommand(command);
@@ -206,8 +206,6 @@ public:
           boost::dynamic_pointer_cast<commands::results::PocketTransfer>(result);
         
         assert(ptResult.get() != NULL);
-        
-        return true;
     }
     
     unsigned long createFile(std::string name, unsigned long pocketID) {
@@ -261,11 +259,14 @@ agents - list agents\n\
 agent [name] - select agent\n\
 \n\
 h - Perform netvend handshake\n\
+\n\
 newpocket - Create new Pocket\n\
-transfer [fromPocketID] [toPocketID] [amount] - Transfer credit from one pocket to another\n\
 pocketdeposit [pocketID] - Request deposit address for pocket\n\
+transfer [fromPocketID] [toPocketID] [amount] - Transfer credit from one pocket to another\n\
+\n\
 newfile [name] [pocketID] - Create a new file with [name], thethered to pocket [pocketID]\n\
-write [fileID] [data] - write to file [fileID] with [data] (overwrites old data)";
+write [fileID] [data] - write to file [fileID] with [data] (overwrites old data)\n\
+read [fileID] - read data from file [fileID]";
 
 void createNewAgent(std::string name, boost::asio::io_service& io, bool output=true) {
     Agent agent(io);
@@ -349,7 +350,7 @@ int main() {
         }
         else if (commandCode == "transfer") {
             unsigned long fromPocketID, toPocketID;
-            unsigned long amount;
+            long long amount;
             
             std::cin >> fromPocketID >> toPocketID >> amount;
             
@@ -389,12 +390,7 @@ int main() {
             std::cout << "data: " << s << std::endl;
         }
         else if (commandCode == "t") {
-            createNewAgent("default", io);
-            selectAgent("default");
-            selectedAgent->setConnection(&nvConnection);
-            unsigned long pocket = selectedAgent->performNetvendHandshake();
-            unsigned long file = selectedAgent->createFile("testfile", pocket);
-            selectedAgent->updateFileByID(file, (unsigned char*)"hi", 2);
+            
         }
         else {
             std::cout << "Unrecognized command." << std::endl;

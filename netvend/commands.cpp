@@ -141,25 +141,26 @@ namespace commands {
     
     
     
-    PocketTransfer::PocketTransfer(unsigned long fromPocketID, unsigned long toPocketID, unsigned long amount)
+    PocketTransfer::PocketTransfer(unsigned long fromPocketID, unsigned long toPocketID, unsigned long long amount)
     : Command(COMMANDTYPECHAR_POCKET_TRANSFER), fromPocketID_(fromPocketID), toPocketID_(toPocketID), amount_(amount)
     {}
     
     void PocketTransfer::writeToVch(std::vector<unsigned char>* vch) {
         Command::writeToVch(vch);
         
-        static const size_t DATA_SIZE = PACK_L_SIZE*3;
+        static const size_t DATA_SIZE = PACK_L_SIZE*2 + PACK_Q_SIZE;
         
         unsigned int place = vch->size();
         
         vch->resize(place + DATA_SIZE);
-        place += pack(vch->data()+place, "LLL", fromPocketID_, toPocketID_, amount_);
+        place += pack(vch->data()+place, "LLQ", fromPocketID_, toPocketID_, amount_);
         assert(place == vch->size());
     }
     
     commands::PocketTransfer* PocketTransfer::consumeFromBuf(unsigned char **ptrPtr) {
-        unsigned long fromPocketID, toPocketID, amount;
-        *ptrPtr += unpack(*ptrPtr, "LLL", &fromPocketID, &toPocketID, &amount);
+        unsigned long fromPocketID, toPocketID;
+        unsigned long long amount;
+        *ptrPtr += unpack(*ptrPtr, "LLQ", &fromPocketID, &toPocketID, &amount);
         
         commands::PocketTransfer* command = new PocketTransfer(fromPocketID, toPocketID, amount);
         
@@ -174,7 +175,7 @@ namespace commands {
         return toPocketID_;
     }
     
-    unsigned long PocketTransfer::amount() {
+    unsigned long long PocketTransfer::amount() {
         return amount_;
     }
     
@@ -309,24 +310,24 @@ namespace commands {
 
 namespace results {
 
-    Result::Result(unsigned char error, unsigned long cost)
+    Result::Result(unsigned char error, unsigned long long cost)
     : error_(error), cost_(cost)
     {}
     
     void Result::writeToVch(std::vector<unsigned char>* vch) {
-        static const size_t DATA_SIZE = PACK_C_SIZE + PACK_L_SIZE;
+        static const size_t DATA_SIZE = PACK_C_SIZE + PACK_Q_SIZE;
         
         unsigned int place = vch->size();
         
         vch->resize(place + DATA_SIZE);
-        place += pack(vch->data()+place, "CL", error_, cost_);
+        place += pack(vch->data()+place, "CQ", error_, cost_);
         assert(place == vch->size());
     }
 
     Result* Result::consumeFromBuf(unsigned char** ptrPtr, unsigned char commandType) {
         unsigned char errorType;
-        unsigned long cost;
-        *ptrPtr += unpack(*ptrPtr, "CL", &errorType, &cost);
+        unsigned long long cost;
+        *ptrPtr += unpack(*ptrPtr, "CQ", &errorType, &cost);
         
         if (errorType) {
             return errors::Error::consumeFromBuf(errorType, cost, ptrPtr);
@@ -357,7 +358,7 @@ namespace results {
         return NULL;
     }
 
-    unsigned long Result::cost() {
+    unsigned long long Result::cost() {
         return cost_;
     }
     
@@ -413,13 +414,13 @@ namespace results {
         return &results_;
     }
     
-    unsigned long Batch::cost() {
+    unsigned long long Batch::cost() {
         return cost_;
     }
 
     
     
-    CreatePocket::CreatePocket(unsigned long cost, unsigned long pocketID)
+    CreatePocket::CreatePocket(unsigned long long cost, unsigned long pocketID)
     : Result(errors::ERRORTYPECHAR_NONE, cost), pocketID_(pocketID)
     {}
 
@@ -435,7 +436,7 @@ namespace results {
         assert(place == vch->size());
     }
 
-    results::CreatePocket* CreatePocket::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::CreatePocket* CreatePocket::consumeFromBuf(unsigned long long cost, unsigned char **ptrPtr) {
         unsigned long pocketID;
         *ptrPtr += unpack(*ptrPtr, "L", &pocketID);
         
@@ -448,7 +449,7 @@ namespace results {
     
     
     
-    RequestPocketDepositAddress::RequestPocketDepositAddress(unsigned long cost, std::string depositAddress)
+    RequestPocketDepositAddress::RequestPocketDepositAddress(unsigned long long cost, std::string depositAddress)
     : Result(errors::ERRORTYPECHAR_NONE, cost), depositAddress_(depositAddress)
     {}
     
@@ -464,7 +465,7 @@ namespace results {
         std::copy(depositAddress_.begin(), depositAddress_.end(), vch->begin()+place);
     }
     
-    results::RequestPocketDepositAddress* RequestPocketDepositAddress::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::RequestPocketDepositAddress* RequestPocketDepositAddress::consumeFromBuf(unsigned long long cost, unsigned char **ptrPtr) {
         unsigned char buf[MAX_ADDRESS_SIZE + 1];
         memset(buf, '\0', MAX_ADDRESS_SIZE + 1);
         
@@ -484,7 +485,7 @@ namespace results {
     
     
     
-    PocketTransfer::PocketTransfer(unsigned long cost)
+    PocketTransfer::PocketTransfer(unsigned long long cost)
     : Result(errors::ERRORTYPECHAR_NONE, cost)
     {}
     
@@ -492,13 +493,13 @@ namespace results {
         Result::writeToVch(vch);
     }
     
-    results::PocketTransfer* PocketTransfer::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::PocketTransfer* PocketTransfer::consumeFromBuf(unsigned long long cost, unsigned char **ptrPtr) {
         return new results::PocketTransfer(cost);
     }
     
     
     
-    CreateFile::CreateFile(unsigned long cost, unsigned long fileID)
+    CreateFile::CreateFile(unsigned long long cost, unsigned long fileID)
     : Result(errors::ERRORTYPECHAR_NONE, cost), fileID_(fileID)
     {}
     
@@ -515,7 +516,7 @@ namespace results {
         assert(place == vch->size());
     }
     
-    results::CreateFile* CreateFile::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::CreateFile* CreateFile::consumeFromBuf(unsigned long long cost, unsigned char **ptrPtr) {
         unsigned long fileID;
         *ptrPtr += unpack(*ptrPtr, "L", &fileID);
         
@@ -526,7 +527,7 @@ namespace results {
     
     
     
-    UpdateFileByID::UpdateFileByID(unsigned long cost)
+    UpdateFileByID::UpdateFileByID(unsigned long long cost)
     : Result(errors::ERRORTYPECHAR_NONE, cost)
     {}
     
@@ -534,13 +535,13 @@ namespace results {
         Result::writeToVch(vch);
     }
     
-    results::UpdateFileByID* UpdateFileByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::UpdateFileByID* UpdateFileByID::consumeFromBuf(unsigned long long cost, unsigned char **ptrPtr) {
         return new results::UpdateFileByID(cost);
     }
     
     
     
-    ReadFileByID::ReadFileByID(unsigned long cost, std::vector<unsigned char> fileData)
+    ReadFileByID::ReadFileByID(unsigned long long cost, std::vector<unsigned char> fileData)
     : Result(errors::ERRORTYPECHAR_NONE, cost), fileData_(fileData)
     {}
     
@@ -563,7 +564,7 @@ namespace results {
         assert(place == vch->size());
     }
     
-    results::ReadFileByID* ReadFileByID::consumeFromBuf(unsigned long cost, unsigned char **ptrPtr) {
+    results::ReadFileByID* ReadFileByID::consumeFromBuf(unsigned long long cost, unsigned char **ptrPtr) {
         unsigned short fileDataSize;
         *ptrPtr += unpack(*ptrPtr, "H", &fileDataSize);
         
@@ -583,7 +584,7 @@ namespace results {
 
 namespace errors {
 
-    Error::Error(unsigned char errorType, unsigned long cost, bool fatalToBatch)
+    Error::Error(unsigned char errorType, unsigned long long cost, bool fatalToBatch)
     : results::Result(errorType, cost), std::runtime_error("Netvend agent command error"), fatalToBatch_(fatalToBatch)
     {
         what_ = "what_ member not set";
@@ -602,7 +603,7 @@ namespace errors {
         assert(place == vch->size());
     }
     
-    Error* Error::consumeFromBuf(unsigned char errorType, unsigned long cost, unsigned char **ptrPtr) {
+    Error* Error::consumeFromBuf(unsigned char errorType, unsigned long long cost, unsigned char **ptrPtr) {
         bool fatalToBatch;
         *ptrPtr += unpack(*ptrPtr, "B", &fatalToBatch);
         
@@ -637,7 +638,7 @@ namespace errors {
     
     
     
-    ServerLogicError::ServerLogicError(std::string errorString, unsigned long cost, bool fatalToBatch)
+    ServerLogicError::ServerLogicError(std::string errorString, unsigned long long cost, bool fatalToBatch)
     : Error(ERRORTYPECHAR_SERVER_LOGIC, cost, fatalToBatch), errorString_(errorString)
     {
         setWhat();
@@ -663,7 +664,7 @@ namespace errors {
         assert(place == vch->size());
     }
     
-    ServerLogicError* ServerLogicError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+    ServerLogicError* ServerLogicError::consumeFromBuf(unsigned long long cost, bool fatalToBatch, unsigned char **ptrPtr) {
         unsigned char errorStringSize;
         *ptrPtr += unpack(*ptrPtr, "C", &errorStringSize);
         
@@ -681,7 +682,7 @@ namespace errors {
     
     
     
-    InvalidTargetError::InvalidTargetError(std::string target, unsigned long cost, bool fatalToBatch)
+    InvalidTargetError::InvalidTargetError(std::string target, unsigned long long cost, bool fatalToBatch)
     : Error(ERRORTYPECHAR_INVALID_TARGET, cost, fatalToBatch), target_(target)
     {
         setWhat();
@@ -707,7 +708,7 @@ namespace errors {
         assert(place == vch->size());
     }
     
-    InvalidTargetError* InvalidTargetError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+    InvalidTargetError* InvalidTargetError::consumeFromBuf(unsigned long long cost, bool fatalToBatch, unsigned char **ptrPtr) {
         unsigned char targetSize;
         *ptrPtr += unpack(*ptrPtr, "C", &targetSize);
         
@@ -725,7 +726,7 @@ namespace errors {
     
     
     
-    TargetNotOwnedError::TargetNotOwnedError(std::string target, unsigned long cost, bool fatalToBatch)
+    TargetNotOwnedError::TargetNotOwnedError(std::string target, unsigned long long cost, bool fatalToBatch)
     : Error(ERRORTYPECHAR_TARGET_NOT_OWNED, cost, fatalToBatch), target_(target)
     {
         setWhat();
@@ -750,7 +751,7 @@ namespace errors {
         assert(place+targetSize == vch->size());
     }
     
-    TargetNotOwnedError* TargetNotOwnedError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+    TargetNotOwnedError* TargetNotOwnedError::consumeFromBuf(unsigned long long cost, bool fatalToBatch, unsigned char **ptrPtr) {
         unsigned char targetSize;
         *ptrPtr += unpack(*ptrPtr, "C", &targetSize);
         
@@ -768,7 +769,7 @@ namespace errors {
     
     
     
-    CreditInsufficientError::CreditInsufficientError(unsigned long requiredCredit, unsigned long availableCredit, unsigned long cost, bool fatalToBatch)
+    CreditInsufficientError::CreditInsufficientError(unsigned long long requiredCredit, unsigned long long availableCredit, unsigned long long cost, bool fatalToBatch)
     : Error(ERRORTYPECHAR_CREDIT_INSUFFICIENT, cost, fatalToBatch), requiredCredit_(requiredCredit), availableCredit_(availableCredit)
     {
         setWhat();
@@ -781,39 +782,39 @@ namespace errors {
     void CreditInsufficientError::writeToVch(std::vector<unsigned char>* vch) {
         Error::writeToVch(vch);
         
-        static const size_t DATA_SIZE = PACK_L_SIZE + PACK_L_SIZE;
+        static const size_t DATA_SIZE = PACK_Q_SIZE*2;
         
         unsigned long place = vch->size();
         
         vch->resize(place + DATA_SIZE);
-        place += pack(vch->data()+place, "LL", requiredCredit_, availableCredit_);
+        place += pack(vch->data()+place, "QQ", requiredCredit_, availableCredit_);
         
         assert(place == vch->size());
     }
     
-    errors::CreditInsufficientError* CreditInsufficientError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
-        unsigned long requiredCredit, availableCredit;
+    errors::CreditInsufficientError* CreditInsufficientError::consumeFromBuf(unsigned long long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+        unsigned long long requiredCredit, availableCredit;
         
-        *ptrPtr += unpack(*ptrPtr, "LL", &requiredCredit, &availableCredit);
+        *ptrPtr += unpack(*ptrPtr, "QQ", &requiredCredit, &availableCredit);
         
         return new errors::CreditInsufficientError(requiredCredit, availableCredit, cost, fatalToBatch);
     }
     
-    unsigned long CreditInsufficientError::requiredCredit() {
+    unsigned long long CreditInsufficientError::requiredCredit() {
         return requiredCredit_;
     }
     
-    unsigned long CreditInsufficientError::availableCredit() {
+    unsigned long long CreditInsufficientError::availableCredit() {
         return availableCredit_;
     }
     
-    unsigned long CreditInsufficientError::creditMissing() {
+    unsigned long long CreditInsufficientError::creditMissing() {
         return requiredCredit_ - availableCredit_;
     }
     
     
     
-    CreditOverflowError::CreditOverflowError(unsigned long pocketCredit, unsigned long addedCredit, unsigned long cost, bool fatalToBatch)
+    CreditOverflowError::CreditOverflowError(unsigned long long pocketCredit, unsigned long long addedCredit, unsigned long long cost, bool fatalToBatch)
     : Error(ERRORTYPECHAR_CREDIT_OVERFLOW, cost, fatalToBatch), pocketCredit_(pocketCredit), addedCredit_(addedCredit)
     {
         setWhat();
@@ -826,29 +827,29 @@ namespace errors {
     void CreditOverflowError::writeToVch(std::vector<unsigned char>* vch) {
         Error::writeToVch(vch);
         
-        static const size_t DATA_SIZE = PACK_L_SIZE + PACK_L_SIZE;
+        static const size_t DATA_SIZE = PACK_Q_SIZE*2;
         
         unsigned long place = vch->size();
         
         vch->resize(place + DATA_SIZE);
-        place += pack(vch->data()+place, "LL", pocketCredit_, addedCredit_);
+        place += pack(vch->data()+place, "QQ", pocketCredit_, addedCredit_);
         
         assert(place == vch->size());
     }
     
-    errors::CreditOverflowError* CreditOverflowError::consumeFromBuf(unsigned long cost, bool fatalToBatch, unsigned char **ptrPtr) {
-        unsigned long pocketCredit, addedCredit;
+    errors::CreditOverflowError* CreditOverflowError::consumeFromBuf(unsigned long long cost, bool fatalToBatch, unsigned char **ptrPtr) {
+        unsigned long long pocketCredit, addedCredit;
         
-        *ptrPtr += unpack(*ptrPtr, "LL", &pocketCredit, &addedCredit);
+        *ptrPtr += unpack(*ptrPtr, "QQ", &pocketCredit, &addedCredit);
         
         return new errors::CreditOverflowError(pocketCredit, addedCredit, cost, fatalToBatch);
     }
     
-    unsigned long CreditOverflowError::pocketCredit() {
+    unsigned long long CreditOverflowError::pocketCredit() {
         return pocketCredit_;
     }
     
-    unsigned long CreditOverflowError::addedCredit() {
+    unsigned long long CreditOverflowError::addedCredit() {
         return addedCredit_;
     }
     

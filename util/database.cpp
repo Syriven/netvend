@@ -177,7 +177,7 @@ void updatePocketDepositAddress(pqxx::connection *dbConn, std::string ownerAddre
     }
 }
 
-void pocketTransfer(pqxx::connection *dbConn, std::string fromOwnerAddress, unsigned long fromPocketID, unsigned long toPocketID, signed long long amount) {
+void pocketTransfer(pqxx::connection *dbConn, std::string fromOwnerAddress, unsigned long fromPocketID, unsigned long toPocketID, unsigned long long amount) {
     pqxx::work tx(*dbConn, "PocketTransferWork");
     pqxx::result result;
     
@@ -200,7 +200,7 @@ void pocketTransfer(pqxx::connection *dbConn, std::string fromOwnerAddress, unsi
         else {
             //Only possibility left should be that pocket can't support transfer.
             pqxx::result balanceResult = tx.prepared(FETCH_POCKET_BALANCE)(fromPocketID).exec();
-            signed long long balance = balanceResult[0][0].as<signed long long>();
+            unsigned long long balance = balanceResult[0][0].as<unsigned long long>();
             if (balance - amount < 0) {
                 commands::errors::Error* error = new commands::errors::CreditInsufficientError(amount, balance, 0, true);
                 throw NetvendCommandException(error);
